@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.exe
+*.blockmap
+*.yml
+!firebase.json
+.env

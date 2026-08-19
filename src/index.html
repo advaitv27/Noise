@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://www.gstatic.com https://*.firebaseio.com https://*.googleapis.com https://apis.google.com https://*.firebaseapp.com https://accounts.google.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com wss://*.firebaseio.com https://*.firebaseapp.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:;">
+  <title>Noise Desktop - Collaborative Team Calendar</title>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/titlebar.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <link rel="stylesheet" href="styles/calendar.css">
+  <link rel="stylesheet" href="styles/update.css">
+</head>
+<body>
+
+  <!-- Floating Ambient Mesh Orbs (Liquid Glass Theme) -->
+  <div class="liquid-bg-mesh">
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div class="ambient-orb orb-3"></div>
+  </div>
+
+  <!-- Custom Native Desktop Title Bar -->
+  <header class="desktop-titlebar">
+    <div class="titlebar-left">
+      <div class="app-brand">
+        <img src="assets/icon.png" alt="Noise" class="brand-logo" />
+      </div>
+
+      <div class="sync-status" id="titlebar-sync-status" title="Click to open Firebase sync settings">
+        <div class="status-indicator" id="sync-indicator-dot"></div>
+        <span id="sync-status-text">Local Mode • Offline Storage</span>
+      </div>
+    </div>
+
+    <div class="titlebar-center">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="global-search-input" class="search-input" placeholder="Search events, members, tasks...">
+        <span class="kbd-shortcut">Ctrl+K</span>
+      </div>
+    </div>
+
+    <div class="titlebar-right">
+      <!-- Quick Theme Toggle -->
+      <button class="theme-toggle-btn" id="titlebar-theme-toggle" title="Toggle Dark / Light Theme">
+        🌙
+      </button>
+
+      <!-- Active User Quick Switcher Pill -->
+      <div class="active-user-pill" id="active-user-pill" title="Click to switch active profile">
+        <div class="user-avatar-sm" id="header-user-avatar">AM</div>
+        <span class="user-name-sm" id="header-user-name">Alex Morgan</span>
+      </div>
+
+      <!-- Native Window Controls -->
+      <div class="window-controls">
+        <button class="win-btn" id="win-minimize" title="Minimize">
+          <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <button class="win-btn" id="win-maximize" title="Maximize">
+          <svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
+        </button>
+        <button class="win-btn close" id="win-close" title="Close">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Main Container -->
+  <div class="app-container">
+    <!-- Left Navigation Sidebar -->
+    <aside class="app-sidebar">
+      <!-- Active Team Workspace Quick Switcher -->
+      <div class="team-workspace-card" id="sidebar-team-switcher" title="Click to switch or create team workspace">
+        <div class="team-badge-icon" id="sidebar-team-icon" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;">⚡</div>
+        <div class="team-meta">
+          <div class="team-name-title" id="sidebar-team-name">Core Engineering</div>
+          <div class="team-code-pill" id="sidebar-team-code">ENG-8842</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--text-muted);"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+
+      <ul class="nav-menu">
+        <li class="nav-item active" data-tab="home">
+          <span class="nav-icon">🏠</span>
+          <span>Home</span>
+        </li>
+        <li class="nav-item" data-tab="calendar">
+          <span class="nav-icon">📅</span>
+          <span>Calendar</span>
+          <span class="nav-badge" id="conflict-nav-badge" style="display: none;">1 alert</span>
+        </li>
+        <li class="nav-item" data-tab="account">
+          <span class="nav-icon">👤</span>
+          <span>Account & Team</span>
+        </li>
+        <li class="nav-item" data-tab="settings">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings</span>
+        </li>
+        <li class="nav-item" data-tab="login">
+          <span class="nav-icon">🔐</span>
+          <span id="nav-login-label">Sign In</span>
+        </li>
+      </ul>
+
+      <!-- Sidebar Mini Calendar Picker -->
+      <div class="sidebar-mini-calendar" id="sidebar-mini-calendar">
+        <!-- Rendered by calendar.js -->
+      </div>
+
+      <!-- Sidebar Team Filters Section -->
+      <div class="sidebar-section">
+        <div class="sidebar-header-row">
+          <span class="sidebar-label">Team Filters</span>
+          <div>
+            <button class="filter-action-btn" id="btn-filter-all">All</button> •
+            <button class="filter-action-btn" id="btn-filter-me">Me</button>
+          </div>
+        </div>
+        <div class="team-filter-list" id="team-filters-container">
+          <!-- Dynamically populated by team.js -->
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Workspace Area -->
+    <main class="app-content">
+      <!-- 🏠 HOME TAB -->
+      <div class="tab-page active" id="page-home"></div>
+
+      <!-- 📅 CALENDAR TAB -->
+      <div class="tab-page" id="page-calendar"></div>
+
+      <!-- 👤 ACCOUNT TAB -->
+      <div class="tab-page" id="page-account"></div>
+
+      <!-- ⚙️ SETTINGS TAB -->
+      <div class="tab-page" id="page-settings"></div>
+
+      <!-- 🔒 LOGIN / FIREBASE TAB -->
+      <div class="tab-page" id="page-login"></div>
+    </main>
+  </div>
+
+  <!-- Auto-Update Toast Notification -->
+  <div class="update-toast" id="update-toast">
+    <div class="update-toast-content">
+      <div class="update-toast-icon" id="update-toast-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </div>
+      <div class="update-toast-text">
+        <span class="update-toast-title" id="update-toast-title">Downloading update...</span>
+        <span class="update-toast-subtitle" id="update-toast-subtitle"></span>
+      </div>
+      <div class="update-toast-progress" id="update-toast-progress-wrap" style="display: none;">
+        <div class="update-toast-progress-bar" id="update-toast-progress-bar"></div>
+      </div>
+      <button class="update-toast-action" id="update-toast-action" style="display: none;">Restart Now</button>
+      <button class="update-toast-dismiss" id="update-toast-dismiss" title="Dismiss">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="global-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Modal Title</h3>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Firebase Official JS SDK (Compat bundle for instant desktop renderer execution) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+
+  <!-- Application Modules -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-service.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/conflict.js"></script>
+  <script src="js/team.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/updater.js"></script>
+</body>
+</html>

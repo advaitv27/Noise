@@ -1,0 +1,233 @@
+/* ==========================================================================
+   CollabCal Desktop - Custom Title Bar (Frameless Desktop Control)
+   ========================================================================== */
+
+.desktop-titlebar {
+  height: 42px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 0 16px;
+  -webkit-app-region: drag; /* Allows moving the native desktop window */
+  user-select: none;
+  z-index: 100;
+  transition: background-color 0.25s ease;
+}
+
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  -webkit-app-region: drag;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+}
+
+.brand-logo {
+  height: 22px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  opacity: 0.95;
+  transition: filter 0.25s ease;
+}
+
+[data-theme="light"] .brand-logo {
+  filter: invert(1); /* Invert white-on-black to black-on-white for light theme */
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="light"] .sync-status {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.status-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-success);
+  box-shadow: 0 0 6px var(--status-success);
+}
+
+.titlebar-center {
+  flex: 1;
+  max-width: 420px;
+  margin: 0 20px;
+  -webkit-app-region: no-drag;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 5px 12px;
+  transition: all 0.2s ease;
+}
+
+.search-box:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.search-icon {
+  width: 14px;
+  height: 14px;
+  stroke: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.kbd-shortcut {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+[data-theme="light"] .kbd-shortcut {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.theme-toggle-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-color-strong);
+}
+
+.active-user-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--bg-surface-hover);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--border-color);
+}
+
+.active-user-pill:hover {
+  background: var(--bg-surface-elevated);
+  border-color: var(--border-color-strong);
+}
+
+.user-avatar-sm {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.user-name-sm {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Window Control Buttons */
+.window-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.win-btn {
+  width: 44px;
+  height: 42px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.win-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .win-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.win-btn.close:hover {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+.win-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}

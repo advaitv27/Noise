@@ -1,0 +1,206 @@
+/* ==========================================================================
+   Auto-Update Toast Notification — Liquid Glass Design
+   ========================================================================== */
+
+.update-toast {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.35s ease;
+}
+
+.update-toast.visible {
+  transform: translateX(-50%) translateY(-16px);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.update-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  min-width: 380px;
+  max-width: 520px;
+  background: var(--bg-surface-elevated);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-color-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg), var(--glass-inset-light);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Icon */
+.update-toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.update-toast-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Downloading state — animate icon bounce */
+.update-toast.downloading .update-toast-icon {
+  animation: updateIconPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes updateIconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+/* Ready state — green glow */
+.update-toast.downloaded .update-toast-icon {
+  background: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
+}
+
+/* Text block */
+.update-toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.update-toast-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.update-toast-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Progress bar */
+.update-toast-progress {
+  width: 80px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.update-toast-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* Restart action button */
+.update-toast-action {
+  flex-shrink: 0;
+  padding: 7px 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.update-toast-action:hover {
+  background: linear-gradient(135deg, #34d399, #10b981);
+  transform: scale(1.04);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+}
+
+.update-toast-action:active {
+  transform: scale(0.97);
+}
+
+/* Dismiss button */
+.update-toast-dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.update-toast-dismiss svg {
+  width: 14px;
+  height: 14px;
+}
+
+.update-toast-dismiss:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+/* Light theme overrides */
+[data-theme="light"] .update-toast-progress {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .update-toast-icon {
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
+}
+
+[data-theme="light"] .update-toast.downloaded .update-toast-icon {
+  background: rgba(5, 150, 105, 0.2);
+  box-shadow: 0 0 12px rgba(5, 150, 105, 0.25);
+}
+
+/* Neon theme overrides */
+[data-theme="neon"] .update-toast-icon {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+[data-theme="neon"] .update-toast.downloaded .update-toast-icon {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.3);
+}
+
+[data-theme="neon"] .update-toast-progress-bar {
+  background: linear-gradient(90deg, #38bdf8, #34d399);
+}
+
+[data-theme="neon"] .update-toast-action {
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
+}
+
+[data-theme="neon"] .update-toast-action:hover {
+  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.4);
+}

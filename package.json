@@ -1,0 +1,73 @@
+{
+  "name": "noise-desktop",
+  "version": "1.0.0",
+  "description": "Professional Collaborative Desktop Calendar Application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable",
+    "dist:dir": "electron-builder --dir",
+    "release": "electron-builder --win --publish always",
+    "deploy:web": "firebase deploy --only hosting"
+  },
+  "keywords": [
+    "calendar",
+    "collaboration",
+    "desktop",
+    "electron",
+    "team-planner"
+  ],
+  "author": "Antigravity Team",
+  "license": "MIT",
+  "build": {
+    "appId": "com.noise.desktop",
+    "productName": "Noise",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "advaitv27",
+        "repo": "Noise"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "src/assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Noise"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}

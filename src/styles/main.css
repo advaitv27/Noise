@@ -1,0 +1,574 @@
+/* ==========================================================================
+   CollabCal Desktop - Core CSS & Design System
+   Color Schemes: 
+   - Dark/Black (Default): High contrast deep OLED black & zinc dark palette
+   - Light Theme: Pristine slate & soft snow theme
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
+
+/* ==========================================================================
+   CollabCal Desktop - Liquid Glass Theme & Professional Design System
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
+
+/* --- Liquid Glass Theme Variables --- */
+:root, [data-theme="dark"] {
+  --bg-app: #080808;
+  --bg-surface: rgba(20, 20, 20, 0.65);
+  --bg-surface-elevated: rgba(30, 30, 30, 0.75);
+  --bg-surface-hover: rgba(45, 45, 45, 0.8);
+  --bg-input: rgba(15, 15, 15, 0.7);
+  
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-color-strong: rgba(255, 255, 255, 0.2);
+  --border-color-accent: rgba(255, 255, 255, 0.4);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-inverse: #000000;
+
+  --accent-primary: #3f3f46;
+  --accent-primary-hover: #52525b;
+  --accent-glow: rgba(255, 255, 255, 0.15);
+  
+  --glass-blur: blur(24px) saturate(190%);
+  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  --glass-inset-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.85);
+
+  /* Liquid Glass Calendar Grid */
+  --cal-grid-line: rgba(255, 255, 255, 0.08);
+  --cal-day-bg: rgba(15, 15, 15, 0.5);
+  --cal-day-other: rgba(8, 8, 8, 0.65);
+  --cal-today-bg: rgba(255, 255, 255, 0.1);
+  --cal-today-border: #a1a1aa;
+
+  /* Vibrant Liquid Member Accents */
+  --member-alex: #14b8a6;       /* Teal */
+  --member-sarah: #10b981;      /* Liquid Mint */
+  --member-michael: #06b6d4;    /* Liquid Cyan */
+  --member-elena: #f43f5e;      /* Liquid Coral */
+  --member-david: #f59e0b;      /* Liquid Amber */
+
+  --status-conflict: #f43f5e;
+  --status-warning: #f59e0b;
+  --status-success: #10b981;
+}
+
+/* Pristine Liquid Crystal Light Theme */
+[data-theme="light"] {
+  --bg-app: #edf0f7;
+  --bg-surface: rgba(255, 255, 255, 0.72);
+  --bg-surface-elevated: rgba(255, 255, 255, 0.85);
+  --bg-surface-hover: rgba(241, 245, 249, 0.9);
+  --bg-input: rgba(248, 250, 252, 0.85);
+  
+  --border-color: rgba(255, 255, 255, 0.6);
+  --border-color-strong: rgba(0, 0, 0, 0.12);
+  --border-color-accent: rgba(79, 70, 229, 0.4);
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-inverse: #ffffff;
+
+  --accent-primary: #4f46e5;
+  --accent-primary-hover: #4338ca;
+  --accent-glow: rgba(79, 70, 229, 0.2);
+
+  --glass-blur: blur(24px) saturate(200%);
+  --glass-shadow: 0 12px 36px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-inset-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.12);
+
+  --cal-grid-line: rgba(0, 0, 0, 0.08);
+  --cal-day-bg: rgba(255, 255, 255, 0.7);
+  --cal-day-other: rgba(241, 245, 249, 0.5);
+  --cal-today-bg: rgba(79, 70, 229, 0.08);
+  --cal-today-border: #4f46e5;
+
+  --member-alex: #7c3aed;
+  --member-sarah: #059669;
+  --member-michael: #0284c7;
+  --member-elena: #e11d48;
+  --member-david: #d97706;
+}
+
+/* Liquid Cyber Neon Theme */
+[data-theme="neon"] {
+  --bg-app: #030712;
+  --bg-surface: rgba(15, 23, 42, 0.75);
+  --bg-surface-elevated: rgba(30, 41, 59, 0.85);
+  --bg-surface-hover: rgba(51, 65, 85, 0.9);
+  --bg-input: rgba(15, 23, 42, 0.85);
+  
+  --border-color: rgba(56, 189, 248, 0.2);
+  --border-color-strong: rgba(56, 189, 248, 0.4);
+  --border-color-accent: #38bdf8;
+
+  --text-primary: #f0f9ff;
+  --text-secondary: #bae6fd;
+  --text-muted: #38bdf8;
+  --text-inverse: #030712;
+
+  --accent-primary: #0284c7;
+  --accent-primary-hover: #0369a1;
+  --accent-glow: rgba(56, 189, 248, 0.35);
+
+  --glass-blur: blur(28px) saturate(220%);
+  --glass-shadow: 0 12px 40px rgba(2, 132, 199, 0.25), inset 0 1px 0 rgba(56, 189, 248, 0.3);
+  --glass-inset-light: inset 0 1px 0 0 rgba(56, 189, 248, 0.25);
+
+  --cal-grid-line: rgba(56, 189, 248, 0.15);
+  --cal-day-bg: rgba(15, 23, 42, 0.6);
+  --cal-day-other: rgba(3, 7, 18, 0.75);
+  --cal-today-bg: rgba(56, 189, 248, 0.15);
+  --cal-today-border: #38bdf8;
+
+  --member-alex: #c084fc;
+  --member-sarah: #34d399;
+  --member-michael: #38bdf8;
+  --member-elena: #fb7185;
+  --member-david: #fbbf24;
+}
+
+/* --- Base & Reset --- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* --- Ultra-Sleek Custom Glass Scrollbars --- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+[data-theme="light"] * {
+  scrollbar-color: rgba(0, 0, 0, 0.16) transparent;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.16);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.32);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+}
+
+/* Floating Ambient Gradient Orbs (Liquid Mesh Effect) */
+.liquid-bg-mesh {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.35;
+  animation: orbFloat 22s infinite alternate ease-in-out;
+}
+
+.orb-1 {
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, #27272a 0%, rgba(39, 39, 42, 0) 70%);
+  top: -150px;
+  left: -150px;
+}
+
+.orb-2 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #3f3f46 0%, rgba(63, 63, 70, 0) 70%);
+  bottom: -200px;
+  right: -100px;
+  animation-delay: -7s;
+}
+
+.orb-3 {
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, #06b6d4 0%, rgba(6, 182, 212, 0) 70%);
+  top: 40%;
+  left: 45%;
+  animation-delay: -14s;
+}
+
+@keyframes orbFloat {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, 40px) scale(1.1); }
+  100% { transform: translate(-40px, 80px) scale(0.95); }
+}
+
+/* Main Desktop Layout Grid */
+.app-container {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 42px);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* Sidebar Navigation - Frosted Liquid Glass Panel */
+.app-sidebar {
+  width: 255px;
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--border-color);
+  box-shadow: var(--glass-shadow);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  gap: 16px;
+  flex-shrink: 0;
+  z-index: 10;
+  transition: all 0.25s ease;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.app-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.app-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.app-sidebar:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Tab Navigation Items */
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9.5px 12px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  border: 1px solid transparent;
+}
+
+.nav-item:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  transform: translateX(3px);
+  box-shadow: var(--glass-inset-light);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border-color: var(--border-color-accent);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: var(--glass-shadow), 0 0 12px var(--accent-glow);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  background: linear-gradient(180deg, #ffffff 0%, #a1a1aa 100%);
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Sidebar Mini Calendar Widget - Liquid Glass */
+.sidebar-mini-calendar {
+  background: var(--bg-surface-elevated);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--glass-inset-light);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+
+.mini-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mini-cal-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.mini-cal-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.mini-cal-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.mini-cal-day-label {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 2px 0;
+}
+
+.mini-cal-cell {
+  font-size: 11px;
+  padding: 4px 0;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.mini-cal-cell:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.mini-cal-cell.today {
+  background: var(--accent-primary);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 6px var(--accent-glow);
+}
+
+.mini-cal-cell.other {
+  opacity: 0.3;
+}
+
+/* Sidebar Section Headers */
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.sidebar-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.filter-action-btn {
+  font-size: 10px;
+  color: var(--accent-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.filter-action-btn:hover {
+  text-decoration: underline;
+}
+
+/* Team Filters Checklist in Sidebar */
+.team-filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.member-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.member-chip:hover {
+  background: var(--bg-surface-hover);
+  transform: translateX(2px);
+}
+
+.member-chip-checkbox {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 2px solid currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.member-chip.checked .member-chip-checkbox {
+  background: currentColor;
+}
+
+.member-chip-checkbox svg {
+  width: 10px;
+  height: 10px;
+  stroke: #ffffff;
+  stroke-width: 3.5;
+  opacity: 0;
+}
+
+.member-chip.checked .member-chip-checkbox svg {
+  opacity: 1;
+}
+
+.member-dot-online {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.member-dot-online::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--status-success);
+  border: 1px solid var(--bg-surface);
+}
+
+/* Main Content Workspace */
+.app-content {
+  flex: 1;
+  background: var(--bg-app);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Tab Views Containers */
+.tab-page {
+  display: none;
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: 24px 32px;
+  animation: fadeIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-page.active {
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* Fix unresponsiveness in inputs due to Electron drag regions */
+input, textarea, button, select {
+  -webkit-app-region: no-drag;
+}
+
