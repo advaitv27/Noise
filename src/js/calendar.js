@@ -140,7 +140,7 @@ class CalendarView {
 
               return `
                 <div class="event-pill ${hasConflict ? 'has-conflict' : ''}" 
-                     draggable="true"
+                     ${e.memberId === state.activeUserId ? 'draggable="true"' : ''}
                      style="background: linear-gradient(90deg, ${member.color}35 0%, ${member.color}12 100%); border: 1px solid ${member.color}45; border-left: 3.5px solid ${member.color}; color: var(--text-primary);"
                      data-event-id="${e.id}"
                      data-tooltip-title="${e.title}"
@@ -290,9 +290,11 @@ class CalendarView {
                   </div>
                 </div>
 
+                ${e.memberId === state.activeUserId ? `
                 <button class="btn btn-ghost btn-sm btn-delete-event" data-event-id="${e.id}">
                   🗑️
                 </button>
+                ` : ''}
               </div>
             `;
           }).join('')}
@@ -470,7 +472,7 @@ class CalendarView {
                   </div>
 
                   <div style="display: flex; gap: 6px;">
-                    <button class="btn btn-secondary btn-sm btn-modal-edit-evt" data-event-id="${e.id}">Edit</button>
+                    <button class="btn btn-secondary btn-sm btn-modal-edit-evt" data-event-id="${e.id}">${e.memberId === state.activeUserId ? 'Edit' : 'View'}</button>
                   </div>
                 </div>
               `;

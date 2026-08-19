@@ -976,7 +976,7 @@ class AppRouter {
       }
 
       body.innerHTML = `
-        <form id="modal-event-form" style="display: flex; flex-direction: column; gap: 16px;">
+        <form id="modal-event-form" style="display: flex; flex-direction: column; gap: 16px; ${isEdit && existingEvent.memberId !== state.activeUserId ? 'pointer-events: none; opacity: 0.8;' : ''}">
           <!-- Task Title -->
           <div class="form-group">
             <label class="form-label">Task Title *</label>
@@ -1046,15 +1046,16 @@ class AppRouter {
             <textarea id="evt-input-desc" class="form-control" rows="2" placeholder="Add task goals or meeting notes...">${existingEvent ? existingEvent.description || '' : ''}</textarea>
           </div>
 
-          <!-- Action Footer Buttons -->
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
-            ${isEdit ? `<button type="button" class="btn btn-danger" id="evt-btn-delete">🗑️ Delete</button>` : '<span></span>'}
-            <div style="display: flex; gap: 10px;">
-              <button type="button" class="btn btn-ghost" id="evt-btn-cancel">Cancel</button>
-              <button type="submit" class="btn btn-primary">${isEdit ? 'Save Task' : 'Create Task'}</button>
-            </div>
           </div>
         </form>
+        <!-- Action Footer Buttons -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+          ${isEdit && existingEvent.memberId === state.activeUserId ? `<button type="button" class="btn btn-danger" id="evt-btn-delete">🗑️ Delete</button>` : '<span></span>'}
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-ghost" id="evt-btn-cancel">${!isEdit || existingEvent.memberId === state.activeUserId ? 'Cancel' : 'Close'}</button>
+            ${!isEdit || existingEvent.memberId === state.activeUserId ? `<button type="submit" form="modal-event-form" class="btn btn-primary">${isEdit ? 'Save Task' : 'Create Task'}</button>` : ''}
+          </div>
+        </div>
       `;
 
 

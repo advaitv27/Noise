@@ -382,6 +382,22 @@ class AppStore {
     this.notify();
   }
 
+  deleteEvent(id) {
+    const idx = this.state.events.findIndex(e => e.id === id);
+    if (idx !== -1) {
+      if (this.state.events[idx].memberId !== this.state.activeUserId) {
+        console.warn("Cannot delete an event you don't own.");
+        return;
+      }
+      this.state.events.splice(idx, 1);
+      this.saveEvents();
+      if (window.firebaseService && window.firebaseService.isInitialized) {
+        window.firebaseService.deleteEvent(id).catch(console.warn);
+      }
+      this.notify();
+    }
+  }
+
   setStayLoggedIn(enabled) {
     localStorage.setItem('collabcal_stay_logged_in', enabled ? 'true' : 'false');
     if (!enabled) {
@@ -591,6 +607,10 @@ class AppStore {
   updateEvent(eventId, updatedData) {
     const index = this.state.events.findIndex(e => e.id === eventId);
     if (index !== -1) {
+      if (this.state.events[index].memberId !== this.state.activeUserId) {
+        console.warn("Cannot update an event you don't own.");
+        return;
+      }
       this.state.events[index] = { ...this.state.events[index], ...updatedData };
       this.saveEvents();
       this.notify();
@@ -604,18 +624,6 @@ class AppStore {
     }
   }
 
-  deleteEvent(eventId) {
-    this.state.events = this.state.events.filter(e => e.id !== eventId);
-    this.saveEvents();
-    this.notify();
-
-    // Async sync to Firebase Firestore if connected
-    if (window.firebaseService && window.firebaseService.isInitialized) {
-      window.firebaseService.deleteEvent(eventId).catch(err => {
-        console.warn('Could not sync deleted event to Firebase:', err);
-      });
-    }
-  }
 
   factoryReset() {
     localStorage.removeItem('collabcal_theme');
