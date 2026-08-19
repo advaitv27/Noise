@@ -23,18 +23,11 @@ class ConflictEngine {
 
         // Check time overlap: (start1 < end2) && (start2 < end1)
         if (start1 < end2 && start2 < end1) {
-          // Check if same creator member or shared attendees
-          const sharedPeople = (e1.attendees || [e1.memberId]).filter(id => 
-            (e2.attendees || [e2.memberId]).includes(id) || e2.memberId === id
-          );
-
-          if (e1.memberId === e2.memberId || sharedPeople.length > 0) {
-            conflicts.push({
-              event1: e1,
-              event2: e2,
-              overlappingPeople: Array.from(new Set([e1.memberId, e2.memberId, ...sharedPeople]))
-            });
-          }
+          conflicts.push({
+            event1: e1,
+            event2: e2,
+            overlappingPeople: Array.from(new Set([e1.memberId, e2.memberId, ...(e1.attendees || []), ...(e2.attendees || [])]))
+          });
         }
       }
     }

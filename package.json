@@ -1,6 +1,6 @@
 {
   "name": "noise-desktop",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Professional Collaborative Desktop Calendar Application",
   "main": "main.js",
   "scripts": {
@@ -30,13 +30,6 @@
       "main.js",
       "preload.js",
       "src/**/*"
-    ],
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "advaitv27",
-        "repo": "Noise"
-      }
     ],
     "win": {
       "target": [
