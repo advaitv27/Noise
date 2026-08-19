@@ -11,7 +11,7 @@ class AppStore {
   initStore() {
     const savedTheme = localStorage.getItem('collabcal_theme') || 'dark';
     const savedActiveUser = localStorage.getItem('collabcal_active_user') || 'user_default';
-    const savedActiveTeam = localStorage.getItem('collabcal_active_team') || 'team_general';
+    const savedActiveTeam = localStorage.getItem('collabcal_active_team') || null;
     const savedTeams = localStorage.getItem('collabcal_teams');
     const savedMembers = localStorage.getItem('collabcal_members');
     const savedEvents = localStorage.getItem('collabcal_events');
@@ -106,14 +106,7 @@ class AppStore {
   }
 
   getActiveTeam() {
-    return this.state.teams.find(t => t.id === this.state.activeTeamId) || this.state.teams[0] || {
-      id: 'team_default',
-      name: 'My Workspace',
-      code: 'TEAM-101',
-      icon: '💼',
-      color: '#52525b',
-      memberIds: this.state.teamMembers.map(m => m.id)
-    };
+    return this.state.teams.find(t => t.id === this.state.activeTeamId) || this.state.teams[0] || null;
   }
 
   switchTeam(teamId) {
@@ -310,7 +303,7 @@ class AppStore {
     } else {
       this.state.teams = [...cloudTeams];
       if (!this.state.teams.some(t => t.id === this.state.activeTeamId)) {
-        this.state.activeTeamId = this.state.teams[0]?.id || 'team_general';
+        this.state.activeTeamId = this.state.teams[0]?.id || null;
       }
     }
     
@@ -369,16 +362,7 @@ class AppStore {
     localStorage.setItem('collabcal_active_user', this.state.activeUserId);
     localStorage.setItem('collabcal_members', JSON.stringify(this.state.teamMembers));
 
-    // Ensure active user belongs to active team
-    const activeTeam = this.getActiveTeam();
-    if (activeTeam && !activeTeam.memberIds.includes(this.state.activeUserId)) {
-      activeTeam.memberIds.push(this.state.activeUserId);
-      this.saveTeams();
-      if (window.firebaseService && window.firebaseService.isInitialized) {
-        window.firebaseService.updateTeam(activeTeam.id, activeTeam).catch(console.warn);
-      }
-    }
-
+    // Wait for ingestCloudTeams to handle workspace generation.
     this.notify();
   }
 
@@ -678,7 +662,7 @@ class AppStore {
   // Reset to Clean Workspace
   resetToCleanWorkspace() {
     this.state.teams = typeof INITIAL_TEAMS !== 'undefined' ? INITIAL_TEAMS : [];
-    this.state.activeTeamId = this.state.teams[0]?.id || 'team_general';
+    this.state.activeTeamId = this.state.teams[0]?.id || null;
     this.state.teamMembers = typeof INITIAL_TEAM_MEMBERS !== 'undefined' ? INITIAL_TEAM_MEMBERS : [];
     this.state.events = typeof INITIAL_EVENTS !== 'undefined' ? INITIAL_EVENTS : [];
     this.state.visibleMemberIds = new Set(this.state.teamMembers.map(m => m.id));

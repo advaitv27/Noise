@@ -63,20 +63,7 @@ window.DateUtils = DateUtils;
 
 const INITIAL_TEAM_MEMBERS = [];
 
-const INITIAL_TEAMS = [
-  {
-    id: 'team_general',
-    name: 'My Workspace',
-    code: 'WRK-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
-    description: 'Personal private calendar workspace',
-    icon: '⚡',
-    color: '#52525b',
-    ownerId: 'user_default',
-    memberIds: [],
-    isPrivate: true,
-    createdAt: new Date().toISOString()
-  }
-];
+const INITIAL_TEAMS = [];
 
 const INITIAL_EVENTS = [];
 
