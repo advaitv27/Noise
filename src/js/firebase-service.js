@@ -640,6 +640,15 @@ class FirebaseService {
     }
   }
 
+  async uploadProfilePicture(file, userId) {
+    if (!firebase.storage) throw new Error("Firebase Storage is not initialized.");
+    if (!this.currentUser) throw new Error("Must be logged in to upload a profile picture.");
+    const storageRef = firebase.storage().ref();
+    const avatarRef = storageRef.child('avatars/' + userId + '_' + Date.now());
+    await avatarRef.put(file);
+    return await avatarRef.getDownloadURL();
+  }
+
   async deleteAccountData() {
     if (!this.auth || !this.currentUser || !this.db) {
       throw new Error("Must be logged in to delete account.");

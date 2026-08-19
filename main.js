@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, dialog, Menu, Tray } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
@@ -7,6 +7,8 @@ const http = require('http');
 let mainWindow;
 let localServer;
 let localPort;
+let tray = null;
+app.isQuitting = false;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -259,6 +261,14 @@ async function createWindow() {
     mainWindow.webContents.send('window-maximized-change', false);
   });
 
+  // Minimize to tray instead of quitting
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   // Initialize auto-updater after window is ready
   setupAutoUpdater();
 }
@@ -279,7 +289,13 @@ ipcMain.on('window-toggle-maximize', () => {
 });
 
 ipcMain.on('window-close', () => {
-  if (mainWindow) mainWindow.close();
+  if (mainWindow) {
+    if (!app.isQuitting) {
+      mainWindow.hide();
+    } else {
+      mainWindow.close();
+    }
+  }
 });
 
 ipcMain.handle('window-is-maximized', () => {
@@ -330,8 +346,18 @@ ipcMain.handle('export-file', async (event, { defaultName, content, filters }) =
 app.whenReady().then(() => {
   createWindow();
 
+  tray = new Tray(path.join(__dirname, 'src/assets/icon.png'));
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Show App', click: () => { if (mainWindow) mainWindow.show(); } },
+    { label: 'Quit', click: () => { app.isQuitting = true; app.quit(); } }
+  ]);
+  tray.setToolTip('Noise Calendar');
+  tray.setContextMenu(contextMenu);
+  tray.on('double-click', () => { if (mainWindow) mainWindow.show(); });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    else if (mainWindow) mainWindow.show();
   });
 });
 
@@ -339,5 +365,8 @@ app.on('window-all-closed', () => {
   if (localServer) {
     localServer.close();
   }
-  if (process.platform !== 'darwin') app.quit();
+  // Let the app run in the background on all platforms due to Tray
+  if (app.isQuitting) {
+    app.quit();
+  }
 });

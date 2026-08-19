@@ -11,6 +11,7 @@ class AppRouter {
     this.setupTabNavigation();
     this.setupModal();
     this.setupSearch();
+    this.startNotificationTicker();
 
     // Subscribe to store state changes
     store.subscribe((state) => this.onStateChange(state));
@@ -239,6 +240,100 @@ class AppRouter {
     }
 
     this.renderCurrentTab();
+  }
+
+  static setupSearch() {
+    const searchInput = document.getElementById('global-search-input');
+    const searchBox = document.querySelector('.search-box');
+    if (!searchInput || !searchBox) return;
+
+    const dropdown = document.createElement('div');
+    dropdown.id = 'search-dropdown';
+    dropdown.style.cssText = 'position: absolute; top: 40px; left: 0; width: 320px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 1000; display: none; flex-direction: column; max-height: 400px; overflow-y: auto;';
+    searchBox.style.position = 'relative';
+    searchBox.appendChild(dropdown);
+
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      if (!q) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      
+      const events = store.getActiveTeamEvents().filter(ev => ev.title.toLowerCase().includes(q) || (ev.category && ev.category.toLowerCase().includes(q)));
+      const members = store.getActiveTeamMembers().filter(m => m.name.toLowerCase().includes(q) || (m.role && m.role.toLowerCase().includes(q)));
+
+      dropdown.innerHTML = '';
+      if (events.length === 0 && members.length === 0) {
+        dropdown.innerHTML = '<div style="padding: 12px; color: var(--text-muted); font-size: 12px; text-align: center;">No results found</div>';
+      } else {
+        if (events.length > 0) {
+          dropdown.innerHTML += '<div style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: var(--text-muted); background: var(--bg-surface); text-transform: uppercase;">Events</div>';
+          events.slice(0,5).forEach(ev => {
+            const el = document.createElement('div');
+            el.style.cssText = 'padding: 10px 12px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; flex-direction: column; gap: 4px;';
+            el.innerHTML = '<div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">' + ev.title + '</div><div style="font-size: 11px; color: var(--text-secondary);">' + ev.start.replace('T', ' ') + '</div>';
+            el.onclick = () => { AppRouter.openEventModal(ev.id); dropdown.style.display = 'none'; searchInput.value = ''; };
+            dropdown.appendChild(el);
+          });
+        }
+        if (members.length > 0) {
+          dropdown.innerHTML += '<div style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: var(--text-muted); background: var(--bg-surface); text-transform: uppercase;">Members</div>';
+          members.slice(0,5).forEach(m => {
+            const el = document.createElement('div');
+            el.style.cssText = 'padding: 10px 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;';
+            el.innerHTML = '<div style="width: 24px; height: 24px; border-radius: 50%; background: ' + (m.color || '#555') + '; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">' + (m.avatarUrl ? '<img src="'+m.avatarUrl+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : (m.avatar || 'U')) + '</div><div style="display: flex; flex-direction: column;"><span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">' + m.name + '</span><span style="font-size: 11px; color: var(--text-secondary);">' + (m.role || 'Member') + '</span></div>';
+            dropdown.appendChild(el);
+          });
+        }
+      }
+      dropdown.style.display = 'flex';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!searchBox.contains(e.target)) dropdown.style.display = 'none';
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+      }
+    });
+  }
+
+  static startNotificationTicker() {
+    this.notifiedEvents = new Set();
+    
+    setInterval(() => {
+      if (!window.electronAPI) return;
+      const now = new Date();
+      const events = store.getActiveTeamEvents();
+      
+      events.forEach(ev => {
+        if (!ev.start || !ev.end) return;
+        const start = new Date(ev.start);
+        const end = new Date(ev.end);
+        
+        // Match start within the current minute
+        if (Math.abs(start.getTime() - now.getTime()) < 60000 && start.getTime() <= now.getTime()) {
+          const key = 'start_' + ev.id;
+          if (!this.notifiedEvents.has(key)) {
+            this.notifiedEvents.add(key);
+            window.electronAPI.showNotification({ title: 'Task Started', body: ev.title + ' has just started.' });
+          }
+        }
+        
+        // Match end within the current minute
+        if (Math.abs(end.getTime() - now.getTime()) < 60000 && end.getTime() <= now.getTime()) {
+          const key = 'end_' + ev.id;
+          if (!this.notifiedEvents.has(key)) {
+            this.notifiedEvents.add(key);
+            window.electronAPI.showNotification({ title: 'Task Ended', body: ev.title + ' has ended.' });
+          }
+        }
+      });
+    }, 30000);
   }
 
   static onStateChange(state) {
