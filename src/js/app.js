@@ -759,7 +759,7 @@ class AppRouter {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
               </div>
               <h2 style="font-size: 22px; font-weight: 800; color: var(--text-primary);">
-                ${isLoggedIn ? 'My Account & Workspace' : (authMode === 'signin' ? 'Sign In to CollabCal' : 'Create Firebase Account')}
+                ${isLoggedIn ? 'My Account & Workspace' : (authMode === 'signin' ? 'Sign In to Noise' : 'Create Firebase Account')}
               </h2>
               <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
                 ${isLoggedIn ? 'Your account is active and permanently synced via Cloud Firestore' : (authMode === 'signin' ? 'Enter your Firebase account credentials to sync calendar tasks' : 'Set up your cloud profile to collaborate with your team in real time')}
