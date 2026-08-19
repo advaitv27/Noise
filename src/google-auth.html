@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CollabCal - Secure Login</title>
+  <title>Noise - Secure Login</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/components.css">
   <style>
@@ -35,7 +35,7 @@
 <body>
 
   <div class="auth-container">
-    <img src="assets/icon.png" alt="CollabCal" width="64" style="margin-bottom: 20px;">
+    <img src="assets/icon.png" alt="Noise" width="64" style="margin-bottom: 20px;">
     <h2 style="margin: 0 0 10px 0; color: var(--text-primary);">Secure Login</h2>
     <p style="color: var(--text-secondary); margin-bottom: 30px;">
       Sign in securely using your browser. You will be redirected back to the app automatically.
@@ -98,14 +98,19 @@
         statusEl.style.color = "var(--status-planning)";
 
         const provider = new firebase.auth.GoogleAuthProvider();
-        // Force account selection to allow switching
-        provider.setCustomParameters({ prompt: 'select_account' });
+        // Force account selection and consent to ensure we get an idToken
+        provider.setCustomParameters({ prompt: 'select_account consent' });
         
-        // We can use signInWithRedirect instead of popup to be more mobile/browser friendly if needed,
-        // but signInWithPopup is usually better for Desktop.
+        // Ensure we are signed out first so we get a fresh credential
+        await auth.signOut();
+
         const result = await auth.signInWithPopup(provider);
         const credential = firebase.auth.GoogleAuthProvider.credentialFromResult(result);
-        const token = credential.idToken;
+        const token = (credential && credential.idToken) || (result.credential && result.credential.idToken);
+
+        if (!token) {
+          throw new Error("Could not retrieve Google ID Token. Please try again.");
+        }
 
         statusEl.innerText = "Authenticating with app...";
 
