@@ -222,80 +222,34 @@ class FirebaseService {
 
   // --- Real-time Cloud Listeners ---
   attachRealtimeListeners() {
-    if (!this.db) return;
+    if (!this.db || !this.currentUser || !this.currentUser.uid) return;
 
-    // 1. Listen to 'events' collection
-    try {
-      if (this.unsubscribeEventsListener) this.unsubscribeEventsListener();
-
-      this.unsubscribeEventsListener = this.db.collection('events').onSnapshot(
-        (snapshot) => {
-          const events = [];
-          snapshot.forEach(doc => {
-            events.push({ id: doc.id, ...doc.data() });
-          });
-
-          // Sync into store if store exists
-          if (window.store) {
-            window.store.ingestCloudEvents(events);
-          }
-          this.setStatus('connected');
-        },
-        (error) => {
-          console.error('Firestore events listener error:', error);
-          if (error.code === 'permission-denied') {
-            this.setStatus('error', 'Firestore permission denied. Please verify your Firestore rules allow read/write.');
-          } else {
-            this.setStatus('error', error.message);
-          }
-        }
-      );
-    } catch (e) {
-      console.error('Failed to attach events listener:', e);
-    }
-
-    // 2. Listen to 'team_members' collection
-    try {
-      if (this.unsubscribeMembersListener) this.unsubscribeMembersListener();
-
-      this.unsubscribeMembersListener = this.db.collection('team_members').onSnapshot(
-        (snapshot) => {
-          const members = [];
-          snapshot.forEach(doc => {
-            members.push({ id: doc.id, ...doc.data() });
-          });
-
-          if (members.length > 0 && window.store) {
-            window.store.ingestCloudMembers(members);
-          }
-        },
-        (error) => {
-          console.error('Firestore members listener error:', error);
-        }
-      );
-    } catch (e) {
-      console.error('Failed to attach members listener:', e);
-    }
-
-    // 3. Listen to 'teams' collection
+    // 1. Listen to 'teams' collection for authorized teams
     try {
       if (this.unsubscribeTeamsListener) this.unsubscribeTeamsListener();
 
-      let teamsQuery = this.db.collection('teams');
-      if (this.currentUser && this.currentUser.uid) {
-        teamsQuery = teamsQuery.where('memberIds', 'array-contains', this.currentUser.uid);
-      }
+      const teamsQuery = this.db.collection('teams').where('memberIds', 'array-contains', this.currentUser.uid);
 
       this.unsubscribeTeamsListener = teamsQuery.onSnapshot(
         (snapshot) => {
           const teams = [];
+          const teamIds = new Set();
+          const memberIds = new Set();
+
           snapshot.forEach(doc => {
-            teams.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            teams.push({ id: doc.id, ...data });
+            teamIds.add(doc.id);
+            if (data.memberIds && Array.isArray(data.memberIds)) {
+              data.memberIds.forEach(id => memberIds.add(id));
+            }
           });
 
           if (window.store) {
             window.store.ingestCloudTeams(teams);
           }
+
+          this.updateCascadingListeners(Array.from(teamIds), Array.from(memberIds));
         },
         (error) => {
           console.error('Firestore teams listener error:', error);
@@ -303,6 +257,101 @@ class FirebaseService {
       );
     } catch (e) {
       console.error('Failed to attach teams listener:', e);
+    }
+  }
+
+  updateCascadingListeners(teamIds, memberIds) {
+    if (!this.db) return;
+
+    // --- Cleanup Existing Listeners ---
+    if (!this.eventListeners) this.eventListeners = [];
+    if (!this.memberListeners) this.memberListeners = [];
+    
+    this.eventListeners.forEach(unsub => unsub());
+    this.memberListeners.forEach(unsub => unsub());
+    this.eventListeners = [];
+    this.memberListeners = [];
+
+    // --- 2. Attach isolated events listeners (1 per team) ---
+    if (teamIds.length > 0) {
+      if (!this._mergedEventsMap) this._mergedEventsMap = new Map();
+      
+      const sendMergedEvents = () => {
+         if (window.store) {
+           window.store.ingestCloudEvents(Array.from(this._mergedEventsMap.values()));
+         }
+      };
+
+      teamIds.forEach(teamId => {
+        try {
+          const unsub = this.db.collection('events').where('teamId', '==', teamId).onSnapshot(
+            (snapshot) => {
+              snapshot.docChanges().forEach(change => {
+                if (change.type === 'removed') {
+                  this._mergedEventsMap.delete(change.doc.id);
+                } else {
+                  this._mergedEventsMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
+                }
+              });
+              sendMergedEvents();
+              this.setStatus('connected');
+            },
+            (error) => {
+              console.error('Events listener error for team', teamId, error);
+            }
+          );
+          this.eventListeners.push(unsub);
+        } catch (e) {
+          console.error('Failed to attach events listener for team:', teamId, e);
+        }
+      });
+    } else {
+      // Clear events if no teams
+      if (this._mergedEventsMap) this._mergedEventsMap.clear();
+      if (window.store) window.store.ingestCloudEvents([]);
+    }
+
+    // --- 3. Attach chunked members listeners ---
+    if (memberIds.length > 0) {
+      if (!this._mergedMembersMap) this._mergedMembersMap = new Map();
+      const sendMergedMembers = () => {
+         if (window.store && this._mergedMembersMap.size > 0) {
+           window.store.ingestCloudMembers(Array.from(this._mergedMembersMap.values()));
+         }
+      };
+
+      // Chunk memberIds into groups of 30 (Firestore 'in' limit is exactly 30)
+      const chunkSize = 30;
+      for (let i = 0; i < memberIds.length; i += chunkSize) {
+        const chunk = memberIds.slice(i, i + chunkSize);
+        try {
+          // FieldPath is required to query by document ID
+          const FieldPath = firebase.firestore.FieldPath;
+          const unsub = this.db.collection('team_members')
+            .where(FieldPath.documentId(), 'in', chunk)
+            .onSnapshot(
+            (snapshot) => {
+              snapshot.docChanges().forEach(change => {
+                if (change.type === 'removed') {
+                  this._mergedMembersMap.delete(change.doc.id);
+                } else {
+                  this._mergedMembersMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
+                }
+              });
+              sendMergedMembers();
+            },
+            (error) => {
+              console.error('Members listener error for chunk', i, error);
+            }
+          );
+          this.memberListeners.push(unsub);
+        } catch (e) {
+          console.error('Failed to attach members listener for chunk:', i, e);
+        }
+      }
+    } else {
+      if (this._mergedMembersMap) this._mergedMembersMap.clear();
+      if (window.store) window.store.ingestCloudMembers([]);
     }
   }
 
