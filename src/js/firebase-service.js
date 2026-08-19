@@ -281,14 +281,19 @@ class FirebaseService {
     try {
       if (this.unsubscribeTeamsListener) this.unsubscribeTeamsListener();
 
-      this.unsubscribeTeamsListener = this.db.collection('teams').onSnapshot(
+      let teamsQuery = this.db.collection('teams');
+      if (this.currentUser && this.currentUser.uid) {
+        teamsQuery = teamsQuery.where('memberIds', 'array-contains', this.currentUser.uid);
+      }
+
+      this.unsubscribeTeamsListener = teamsQuery.onSnapshot(
         (snapshot) => {
           const teams = [];
           snapshot.forEach(doc => {
             teams.push({ id: doc.id, ...doc.data() });
           });
 
-          if (teams.length > 0 && window.store) {
+          if (window.store) {
             window.store.ingestCloudTeams(teams);
           }
         },
