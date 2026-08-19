@@ -4,7 +4,7 @@
 
 class AppRouter {
   static init() {
-    this.activeTab = 'home';
+    this.activeTab = store.isUserLoggedIn() ? 'home' : 'login';
     this.calendarView = new CalendarView(document.querySelector('#page-calendar'));
 
     this.setupWindowControls();
@@ -12,6 +12,9 @@ class AppRouter {
     this.setupModal();
     this.setupSearch();
     this.startNotificationTicker();
+
+    // Force the UI to reflect the active tab on startup
+    this.switchTab(this.activeTab);
 
     // Subscribe to store state changes
     store.subscribe((state) => this.onStateChange(state));
