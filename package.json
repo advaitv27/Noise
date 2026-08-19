@@ -1,6 +1,6 @@
 {
   "name": "noise-desktop",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Professional Collaborative Desktop Calendar Application",
   "main": "main.js",
   "scripts": {
