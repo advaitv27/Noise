@@ -326,6 +326,25 @@ class AppStore {
 
   setActiveUserFromFirebase(profile, rememberMe = true) {
     if (!profile) return;
+
+    // Purge the local dummy user 'Alex Developer' when a real user logs in
+    let purgedDummy = false;
+    const dummyIndex = this.state.teamMembers.findIndex(m => m.email === 'alex@example.com');
+    if (dummyIndex !== -1 && profile.email !== 'alex@example.com') {
+      const dummyId = this.state.teamMembers[dummyIndex].id;
+      this.state.teamMembers.splice(dummyIndex, 1);
+      this.state.visibleMemberIds.delete(dummyId);
+      
+      this.state.teams.forEach(t => {
+        t.memberIds = (t.memberIds || []).filter(id => id !== dummyId);
+        if (t.ownerId === dummyId) t.ownerId = profile.id;
+        if (window.firebaseService && window.firebaseService.isInitialized) {
+          window.firebaseService.updateTeam(t.id, t).catch(console.warn);
+        }
+      });
+      purgedDummy = true;
+      this.saveTeams();
+    }
     const existingIndex = this.state.teamMembers.findIndex(m => m.id === profile.id || (profile.email && m.email === profile.email));
     if (existingIndex !== -1) {
       this.state.teamMembers[existingIndex] = { ...this.state.teamMembers[existingIndex], ...profile };
