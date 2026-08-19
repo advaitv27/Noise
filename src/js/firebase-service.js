@@ -533,129 +533,11 @@ class FirebaseService {
   }
 
   // --- Authentication Helpers (Linked to Firestore user document) ---
-  async signUp(email, password, displayName, rememberMe = true) {
+  async signInWithGoogleToken(idToken) {
     if (!this.auth) throw new Error('Firebase Auth is not initialized');
-
-    try {
-      const persistenceType = rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION;
-      await this.auth.setPersistence(persistenceType);
-    } catch (e) {}
-
-    const cred = await this.auth.createUserWithEmailAndPassword(email, password);
-    const name = displayName || email.split('@')[0];
-    if (cred.user) {
-      cred.user.updateProfile({ displayName: name }).catch(() => {});
-    }
-    this.currentUser = cred.user;
-
-    const avatar = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'US';
-    const colors = ['#8b5cf6', '#10b981', '#06b6d4', '#f43f5e', '#f59e0b', '#3b82f6'];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-    const userProfile = {
-      id: cred.user.uid,
-      uid: cred.user.uid,
-      name: name,
-      email: email,
-      role: 'Team Member',
-      avatar: avatar,
-      color: randomColor,
-      workingHours: { start: '09:00', end: '17:00' },
-      active: true,
-      stayLoggedIn: rememberMe,
-      createdAt: new Date().toISOString()
-    };
-
-    if (window.store) {
-      window.store.setActiveUserFromFirebase(userProfile, rememberMe);
-      window.store.setFirebaseUser(cred.user);
-    }
     
-    if (rememberMe) {
-      localStorage.setItem('collabcal_saved_email', email);
-      localStorage.setItem('collabcal_saved_password', btoa(password));
-    } else {
-      localStorage.removeItem('collabcal_saved_email');
-      localStorage.removeItem('collabcal_saved_password');
-    }
-
-    // Background asynchronous Firestore profile document creation
-    if (this.db) {
-      this.db.collection('users').doc(cred.user.uid).set(userProfile, { merge: true }).catch(console.warn);
-      this.db.collection('team_members').doc(cred.user.uid).set(userProfile, { merge: true }).catch(console.warn);
-    }
-
-    return cred.user;
-  }
-
-  async signIn(email, password, rememberMe = true) {
-    if (!this.auth) throw new Error('Firebase Auth is not initialized');
-
-    try {
-      const persistenceType = rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION;
-      await this.auth.setPersistence(persistenceType);
-    } catch (e) {}
-
-    const cred = await this.auth.signInWithEmailAndPassword(email, password);
-    this.currentUser = cred.user;
-
-    const displayName = cred.user.displayName || email.split('@')[0];
-    const avatar = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'US';
-
-    const userProfile = {
-      id: cred.user.uid,
-      uid: cred.user.uid,
-      name: displayName,
-      email: email,
-      role: 'Team Member',
-      avatar: avatar,
-      color: '#52525b',
-      workingHours: { start: '09:00', end: '17:00' },
-      active: true,
-      stayLoggedIn: rememberMe
-    };
-
-    if (window.store) {
-      window.store.setActiveUserFromFirebase(userProfile, rememberMe);
-      window.store.setFirebaseUser(cred.user);
-    }
-    
-    if (rememberMe) {
-      localStorage.setItem('collabcal_saved_email', email);
-      localStorage.setItem('collabcal_saved_password', btoa(password));
-    } else {
-      localStorage.removeItem('collabcal_saved_email');
-      localStorage.removeItem('collabcal_saved_password');
-    }
-
-    // Fetch and merge remote profile asynchronously without blocking
-    if (this.db) {
-      this.db.collection('users').doc(cred.user.uid).get().then(doc => {
-        if (doc.exists && window.store) {
-          window.store.setActiveUserFromFirebase({ id: doc.id, ...doc.data() }, rememberMe);
-        } else {
-          this.db.collection('users').doc(cred.user.uid).set(userProfile, { merge: true }).catch(console.warn);
-          this.db.collection('team_members').doc(cred.user.uid).set(userProfile, { merge: true }).catch(console.warn);
-        }
-      }).catch(console.warn);
-    }
-
-    return cred.user;
-  }
-
-  async signInWithGoogle() {
-    if (!this.auth) throw new Error('Firebase Auth is not initialized');
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('profile');
-    provider.addScope('email');
-
-    // Create a timeout promise to prevent indefinite hanging in desktop Electron
-    const popupPromise = this.auth.signInWithPopup(provider);
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Google Sign-In popup timed out or is not supported in this desktop container. Please enter your name & Google email below for instant access.')), 10000);
-    });
-
-    const cred = await Promise.race([popupPromise, timeoutPromise]);
+    const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+    const cred = await this.auth.signInWithCredential(credential);
     this.currentUser = cred.user;
 
     const displayName = cred.user.displayName || (cred.user.email ? cred.user.email.split('@')[0] : 'Google User');
@@ -696,10 +578,27 @@ class FirebaseService {
     }
 
     if (window.store) {
-      window.store.setActiveUserFromFirebase(profile);
+      window.store.setActiveUserFromFirebase(profile, true);
+      window.store.setFirebaseUser(cred.user);
     }
-
+    
     return cred.user;
+  }
+
+  async uploadProfilePicture(file, userId) {
+    if (!this.isInitialized || !firebase.storage) {
+      throw new Error('Firebase Storage is not initialized.');
+    }
+    try {
+      const storageRef = firebase.storage().ref();
+      const avatarRef = storageRef.child(`avatars/${userId}_${Date.now()}`);
+      await avatarRef.put(file);
+      const downloadURL = await avatarRef.getDownloadURL();
+      return downloadURL;
+    } catch (e) {
+      console.error('Failed to upload profile picture:', e);
+      throw e;
+    }
   }
 
   async signInAnonymously() {

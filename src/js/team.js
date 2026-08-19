@@ -32,7 +32,9 @@ class TeamManager {
         </div>
         <div class="member-dot-online" style="background-color: ${member.color}"></div>
         <span style="color: var(--text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${member.name}</span>
-        <span style="font-size: 10px; color: var(--text-muted); font-weight: 600;">${member.avatar}</span>
+        <span style="font-size: 10px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: ${member.avatarUrl ? 'transparent' : 'var(--bg-surface)'};">
+          ${member.avatarUrl ? `<img src="${member.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : member.avatar}
+        </span>
       `;
 
       chip.addEventListener('click', () => {
@@ -259,8 +261,8 @@ class TeamManager {
                  data-user-id="${m.id}"
                  style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: 1px solid ${m.id === activeUser.id ? m.color : 'var(--border-color)'}; border-radius: 12px; background: ${m.id === activeUser.id ? 'var(--bg-surface-elevated)' : 'var(--bg-surface)'}; cursor: pointer; transition: all 0.15s ease;">
               <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 36px; height: 36px; border-radius: 50%; background: ${m.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">
-                  ${m.avatar}
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: ${m.avatarUrl ? 'transparent' : m.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">
+                  ${m.avatarUrl ? `<img src="${m.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : m.avatar}
                 </div>
                 <div>
                   <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">${m.name}</div>
@@ -297,8 +299,8 @@ class TeamManager {
         <div class="panel">
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 20px;">
-              <div style="width: 64px; height: 64px; border-radius: 50%; background: ${activeUser.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
-                ${activeUser.avatar}
+              <div style="width: 64px; height: 64px; border-radius: 50%; background: ${activeUser.avatarUrl ? 'transparent' : activeUser.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
+                ${activeUser.avatarUrl ? `<img src="${activeUser.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : activeUser.avatar}
               </div>
               <div>
                 <h2 style="font-size: 22px; color: var(--text-primary);">${activeUser.name}</h2>
@@ -440,8 +442,8 @@ class TeamManager {
             ` : activeMembers.map(member => `
               <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 10px;">
                 <div style="display: flex; align-items: center; gap: 14px;">
-                  <div style="width: 34px; height: 34px; border-radius: 50%; background: ${member.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;">
-                    ${member.avatar}
+                  <div style="width: 34px; height: 34px; border-radius: 50%; background: ${member.avatarUrl ? 'transparent' : member.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;">
+                    ${member.avatarUrl ? `<img src="${member.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : member.avatar}
                   </div>
                   <div>
                     <div style="font-weight: 600; font-size: 14px; color: var(--text-primary);">${member.name}</div>

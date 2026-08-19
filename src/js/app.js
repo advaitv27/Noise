@@ -17,6 +17,23 @@ class AppRouter {
 
     // Initial render
     this.onStateChange(store.getState());
+
+    // Listen for Google Auth Token from Main Process
+    if (window.electronAPI && window.electronAPI.onGoogleAuthToken) {
+      window.electronAPI.onGoogleAuthToken(async (token) => {
+        try {
+          if (window.firebaseService) {
+            ToastNotificationManager.show({ title: 'Authenticating...', message: 'Validating secure token.' });
+            await window.firebaseService.signInWithGoogleToken(token);
+            ToastNotificationManager.show({ title: 'Welcome Back! 🎉', message: 'Signed in with Google.' });
+            this.switchTab('calendar');
+          }
+        } catch (err) {
+          console.error('Google Token Auth Error:', err);
+          ToastNotificationManager.show({ title: 'Sign In Failed', message: err.message, isConflict: true });
+        }
+      });
+    }
   }
 
   // Window Controls for Desktop Shell
@@ -53,61 +70,140 @@ class AppRouter {
       }
       
       this.openModal('👤 Account Overview', (modalBody) => {
-        modalBody.innerHTML = `
-          <div style="text-align: center; padding: 20px 0;">
-            <div style="width: 80px; height: 80px; border-radius: 50%; background: ${activeUser.color || '#52525b'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; margin: 0 auto 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
-              ${activeUser.avatar}
+        const renderModal = () => {
+          modalBody.innerHTML = `
+            <div style="text-align: center; padding: 20px 0;">
+              <div style="position: relative; width: 80px; height: 80px; margin: 0 auto 16px;">
+                ${activeUser.avatarUrl ? 
+                  `<img src="${activeUser.avatarUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 16px rgba(0,0,0,0.3);" />` : 
+                  `<div style="width: 100%; height: 100%; border-radius: 50%; background: ${activeUser.color || '#52525b'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">${activeUser.avatar}</div>`
+                }
+                <label for="avatar-upload" style="position: absolute; bottom: -4px; right: -4px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 50%; padding: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="Change Profile Picture">
+                  📷
+                </label>
+                <input type="file" id="avatar-upload" accept="image/png, image/jpeg, image/jpg" style="display: none;" />
+              </div>
+              <h2 style="font-size: 24px; color: var(--text-primary); margin-bottom: 4px;">${activeUser.name}</h2>
+              <p style="color: var(--text-secondary); margin-bottom: 24px;">${activeUser.email}</p>
+              
+              <div style="background: var(--bg-body); padding: 16px; border-radius: 12px; border: 1px solid var(--border-light); margin-bottom: 24px; text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <h3 style="font-size: 14px; margin: 0; color: var(--text-muted); text-transform: uppercase;">Preferences</h3>
+                  <button id="btn-save-prefs" class="btn btn-primary btn-sm" style="display: none;">Save Changes</button>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label class="form-label" style="display: flex; justify-content: space-between;">
+                    <span>Working Hours</span>
+                  </label>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="time" id="pref-wh-start" class="form-control" style="width: 120px;" value="${activeUser.workingHours?.start || '09:00'}">
+                    <span style="color: var(--text-secondary);">to</span>
+                    <input type="time" id="pref-wh-end" class="form-control" style="width: 120px;" value="${activeUser.workingHours?.end || '17:00'}">
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Role</label>
+                  <input type="text" id="pref-role" class="form-control" value="${activeUser.role || ''}" placeholder="e.g. Developer, Designer">
+                </div>
+              </div>
+
+              <div style="border-top: 1px solid var(--border-color); padding-top: 24px; margin-top: 16px;">
+                <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--status-danger); text-transform: uppercase;">Danger Zone</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+                  Deleting your account will permanently wipe your profile, personal workspace, and all tasks assigned to you. This action cannot be reversed.
+                </p>
+                <button class="btn btn-danger" id="btn-delete-account" style="width: 100%;">
+                  🗑️ Delete Account Data
+                </button>
+              </div>
             </div>
-            <h2 style="font-size: 24px; color: var(--text-primary); margin-bottom: 4px;">${activeUser.name}</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 24px;">${activeUser.email}</p>
+          `;
+
+          // Show save button if inputs change
+          const showSaveBtn = () => {
+            const btn = modalBody.querySelector('#btn-save-prefs');
+            if (btn) btn.style.display = 'block';
+          };
+          modalBody.querySelector('#pref-wh-start').addEventListener('input', showSaveBtn);
+          modalBody.querySelector('#pref-wh-end').addEventListener('input', showSaveBtn);
+          modalBody.querySelector('#pref-role').addEventListener('input', showSaveBtn);
+
+          modalBody.querySelector('#btn-save-prefs').addEventListener('click', async () => {
+            const start = modalBody.querySelector('#pref-wh-start').value;
+            const end = modalBody.querySelector('#pref-wh-end').value;
+            const role = modalBody.querySelector('#pref-role').value;
             
-            <div style="background: var(--bg-body); padding: 16px; border-radius: 12px; border: 1px solid var(--border-light); margin-bottom: 24px; text-align: left;">
-              <h3 style="font-size: 14px; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase;">Preferences</h3>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="color: var(--text-primary);">Working Hours</span>
-                <span style="color: var(--text-secondary);">${activeUser.workingHours?.start || '09:00'} - ${activeUser.workingHours?.end || '17:00'}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: var(--text-primary);">Role</span>
-                <span class="badge badge-indigo">${activeUser.role}</span>
-              </div>
-            </div>
-
-            <div style="border-top: 1px solid var(--border-color); padding-top: 24px; margin-top: 16px;">
-              <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--status-danger); text-transform: uppercase;">Danger Zone</h3>
-              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
-                Deleting your account will permanently wipe your profile, personal workspace, and all tasks assigned to you. This action cannot be reversed.
-              </p>
-              <button class="btn btn-danger" id="btn-delete-account" style="width: 100%;">
-                🗑️ Delete Account Data
-              </button>
-            </div>
-          </div>
-        `;
-
-        modalBody.querySelector('#btn-delete-account').addEventListener('click', async () => {
-          if (confirm('🚨 CRITICAL WARNING 🚨\\n\\nAre you absolutely sure you want to delete your account? All your personal tasks and workspaces will be permanently destroyed. This cannot be undone.')) {
-            const btn = modalBody.querySelector('#btn-delete-account');
-            btn.innerHTML = 'Deleting...';
+            const btn = modalBody.querySelector('#btn-save-prefs');
+            btn.innerHTML = 'Saving...';
             btn.disabled = true;
 
+            const updatedUser = { ...activeUser, workingHours: { start, end }, role };
+            
             try {
-              if (window.firebaseService) {
-                await window.firebaseService.deleteAccountData();
-              } else {
-                store.factoryReset();
+              if (window.firebaseService && window.firebaseService.isInitialized) {
+                await window.firebaseService.db.collection('users').doc(activeUser.id).set(updatedUser, { merge: true });
+                await window.firebaseService.db.collection('team_members').doc(activeUser.id).set(updatedUser, { merge: true });
               }
-              this.closeModal();
-              ToastNotificationManager.show({ title: 'Account Deleted', message: 'Your account data has been wiped.' });
-              this.switchTab('login');
-            } catch (err) {
-              console.error(err);
-              btn.innerHTML = 'Error Deleting Account';
+              store.setActiveUserFromFirebase(updatedUser, true);
+              ToastNotificationManager.show({ title: 'Saved', message: 'Preferences updated.' });
+              btn.innerHTML = 'Saved!';
+              setTimeout(() => { btn.style.display = 'none'; btn.innerHTML = 'Save Changes'; btn.disabled = false; }, 2000);
+            } catch(e) {
+              btn.innerHTML = 'Save Changes';
               btn.disabled = false;
-              ToastNotificationManager.show({ title: 'Error', message: 'Could not delete account. Try signing in again.' });
+              ToastNotificationManager.show({ title: 'Error', message: 'Failed to save.' });
             }
-          }
-        });
+          });
+
+          // Avatar Upload
+          modalBody.querySelector('#avatar-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            ToastNotificationManager.show({ title: 'Uploading...', message: 'Uploading profile picture.' });
+            try {
+              const url = await window.firebaseService.uploadProfilePicture(file, activeUser.id);
+              const updatedUser = { ...activeUser, avatarUrl: url };
+              
+              if (window.firebaseService && window.firebaseService.isInitialized) {
+                await window.firebaseService.db.collection('users').doc(activeUser.id).set({ avatarUrl: url }, { merge: true });
+                await window.firebaseService.db.collection('team_members').doc(activeUser.id).set({ avatarUrl: url }, { merge: true });
+              }
+              store.setActiveUserFromFirebase(updatedUser, true);
+              activeUser.avatarUrl = url; // local update for re-render
+              renderModal();
+              ToastNotificationManager.show({ title: 'Success', message: 'Profile picture updated.' });
+            } catch (err) {
+              ToastNotificationManager.show({ title: 'Upload Failed', message: 'Check your Firebase Storage configuration.' });
+            }
+          });
+
+          modalBody.querySelector('#btn-delete-account').addEventListener('click', async () => {
+            if (confirm('🚨 CRITICAL WARNING 🚨\\n\\nAre you absolutely sure you want to delete your account? All your personal tasks and workspaces will be permanently destroyed. This cannot be undone.')) {
+              const btn = modalBody.querySelector('#btn-delete-account');
+              btn.innerHTML = 'Deleting...';
+              btn.disabled = true;
+
+              try {
+                if (window.firebaseService) {
+                  await window.firebaseService.deleteAccountData();
+                } else {
+                  store.factoryReset();
+                }
+                this.closeModal();
+                ToastNotificationManager.show({ title: 'Account Deleted', message: 'Your account data has been wiped.' });
+                this.switchTab('login');
+              } catch (err) {
+                console.error(err);
+                btn.innerHTML = 'Error Deleting Account';
+                btn.disabled = false;
+                ToastNotificationManager.show({ title: 'Error', message: 'Could not delete account. Try signing in again.' });
+              }
+            }
+          });
+        };
+        renderModal();
       });
     });
 
@@ -156,8 +252,13 @@ class AppRouter {
     const themeBtn = document.querySelector('#titlebar-theme-toggle');
 
     if (pillAvatar) {
-      pillAvatar.textContent = activeUser.avatar;
-      pillAvatar.style.backgroundColor = activeUser.color;
+      if (activeUser.avatarUrl) {
+        pillAvatar.innerHTML = `<img src="${activeUser.avatarUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />`;
+        pillAvatar.style.backgroundColor = 'transparent';
+      } else {
+        pillAvatar.textContent = activeUser.avatar;
+        pillAvatar.style.backgroundColor = activeUser.color;
+      }
     }
     if (pillName) {
       pillName.textContent = activeUser.name;
@@ -277,8 +378,8 @@ class AppRouter {
               <button class="btn btn-secondary" id="home-quick-event">➕ Quick Add Task</button>
             </div>
           </div>
-          <div style="width: 72px; height: 72px; border-radius: 50%; background: ${activeUser.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
-            ${activeUser.avatar}
+          <div style="width: 72px; height: 72px; border-radius: 50%; background: ${activeUser.avatarUrl ? 'transparent' : activeUser.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+            ${activeUser.avatarUrl ? `<img src="${activeUser.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : activeUser.avatar}
           </div>
         </div>
 
@@ -344,8 +445,8 @@ class AppRouter {
                 return `
                   <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-left: 4px solid ${member.color}; border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                      <div style="width: 32px; height: 32px; border-radius: 50%; background: ${member.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
-                        ${member.avatar}
+                      <div style="width: 32px; height: 32px; border-radius: 50%; background: ${member.avatarUrl ? 'transparent' : member.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
+                        ${member.avatarUrl ? `<img src="${member.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : member.avatar}
                       </div>
                       <div>
                         <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">${e.title}</div>
@@ -669,8 +770,8 @@ class AppRouter {
               <!-- Authenticated Profile View -->
               <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color-strong); border-radius: 14px; padding: 20px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 16px;">
                 <div style="display: flex; align-items: center; gap: 16px;">
-                  <div style="width: 52px; height: 52px; border-radius: 50%; background: ${activeUser.color || '#52525b'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 19px; box-shadow: 0 3px 12px rgba(0,0,0,0.3);">
-                    ${activeUser.avatar || 'US'}
+                  <div style="width: 52px; height: 52px; border-radius: 50%; background: ${activeUser.avatarUrl ? 'transparent' : (activeUser.color || '#52525b')}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 19px; box-shadow: 0 3px 12px rgba(0,0,0,0.3);">
+                    ${activeUser.avatarUrl ? `<img src="${activeUser.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : (activeUser.avatar || 'US')}
                   </div>
                   <div style="overflow: hidden;">
                     <div style="font-weight: 800; font-size: 16px; color: var(--text-primary);">${activeUser.name}</div>
@@ -710,177 +811,28 @@ class AppRouter {
                 </div>
               </div>
             ` : `
-              <!-- Firebase Auth Tab Switcher -->
-              <div style="display: flex; background: var(--bg-surface-elevated); padding: 4px; border-radius: 10px; margin-bottom: 18px; border: 1px solid var(--border-color);">
-                <button type="button" class="btn ${authMode === 'signin' ? 'btn-primary' : 'btn-ghost'}" id="tab-auth-signin" style="flex: 1; padding: 8px; font-size: 13px; font-weight: 700;">
-                  Sign In
+              <!-- Google OAuth Login -->
+              <div style="text-align: center; margin-top: 10px;">
+                <button type="button" class="btn btn-primary" id="btn-google-login" style="width: 100%; padding: 14px; font-size: 16px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px; background: #ffffff; color: #000000; border: 1px solid #e5e7eb;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                  Continue with Google
                 </button>
-                <button type="button" class="btn ${authMode === 'signup' ? 'btn-primary' : 'btn-ghost'}" id="tab-auth-signup" style="flex: 1; padding: 8px; font-size: 13px; font-weight: 700;">
-                  Create Account
-                </button>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 16px;">
+                  This will open your default browser securely. No more passwords!
+                </p>
               </div>
-
-              <!-- Sign In Form -->
-              ${authMode === 'signin' ? `
-                <form id="form-firebase-login" style="display: flex; flex-direction: column; gap: 14px;">
-                  <div class="form-group" style="margin: 0;">
-                    <label class="form-label">Email Address *</label>
-                    <input type="email" id="auth-signin-email" class="form-control" placeholder="name@company.com" value="${savedEmail}" required autocomplete="email" />
-                  </div>
-                  <div class="form-group" style="margin: 0;">
-                    <label class="form-label">Password *</label>
-                    <input type="password" id="auth-signin-password" class="form-control" placeholder="••••••••" required autocomplete="current-password" />
-                  </div>
-                  
-                  <!-- Stay Logged In Checkbox -->
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 2px;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-primary); cursor: pointer; user-select: none;">
-                      <input type="checkbox" id="auth-signin-remember" ${stayLoggedIn ? 'checked' : ''} style="accent-color: var(--accent-primary); width: 16px; height: 16px; cursor: pointer;" />
-                      <span style="font-weight: 600;">Keep me signed in on this device</span>
-                    </label>
-                  </div>
-
-                  <button type="submit" class="btn btn-primary" id="btn-submit-signin" style="padding: 11px; font-size: 14px; font-weight: 700; margin-top: 4px;">
-                    Sign In to Firebase 🚀
-                  </button>
-                  <div style="text-align: center; font-size: 12.5px; color: var(--text-secondary); margin-top: 2px;">
-                    Don't have an account? <a href="#" id="link-switch-signup" style="color: var(--accent-primary); font-weight: 600; text-decoration: underline;">Create account</a>
-                  </div>
-                </form>
-              ` : `
-                <!-- Sign Up Form -->
-                <form id="form-firebase-register" style="display: flex; flex-direction: column; gap: 14px;">
-                  <div class="form-group" style="margin: 0;">
-                    <label class="form-label">Your Full Name *</label>
-                    <input type="text" id="auth-signup-name" class="form-control" placeholder="e.g. Advait Sharma" required style="font-weight: 600;" autocomplete="name" />
-                  </div>
-                  <div class="form-group" style="margin: 0;">
-                    <label class="form-label">Email Address *</label>
-                    <input type="email" id="auth-signup-email" class="form-control" placeholder="name@company.com" required autocomplete="email" />
-                  </div>
-                  <div class="form-group" style="margin: 0;">
-                    <label class="form-label">Password * (6+ characters)</label>
-                    <input type="password" id="auth-signup-password" class="form-control" placeholder="••••••••" minlength="6" required autocomplete="new-password" />
-                  </div>
-
-                  <!-- Stay Logged In Checkbox -->
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 2px;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-primary); cursor: pointer; user-select: none;">
-                      <input type="checkbox" id="auth-signup-remember" checked style="accent-color: var(--accent-primary); width: 16px; height: 16px; cursor: pointer;" />
-                      <span style="font-weight: 600;">Keep me signed in on this device</span>
-                    </label>
-                  </div>
-
-                  <button type="submit" class="btn btn-primary" id="btn-submit-signup" style="padding: 11px; font-size: 14px; font-weight: 700; margin-top: 4px;">
-                    Create Firebase Account ✨
-                  </button>
-                  <div style="text-align: center; font-size: 12.5px; color: var(--text-secondary); margin-top: 2px;">
-                    Already have an account? <a href="#" id="link-switch-signin" style="color: var(--accent-primary); font-weight: 600; text-decoration: underline;">Sign In</a>
-                  </div>
-                </form>
-              `}
             `}
           </div>
         </div>
       `;
 
       // Event Listeners
-      containerEl.querySelector('#tab-auth-signin')?.addEventListener('click', () => {
-        authMode = 'signin';
-        renderAuthContent();
-      });
-
-      containerEl.querySelector('#tab-auth-signup')?.addEventListener('click', () => {
-        authMode = 'signup';
-        renderAuthContent();
-      });
-
-      containerEl.querySelector('#link-switch-signup')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        authMode = 'signup';
-        renderAuthContent();
-      });
-
-      containerEl.querySelector('#link-switch-signin')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        authMode = 'signin';
-        renderAuthContent();
-      });
-
-      // Toggle Stay Logged in Profile
-      containerEl.querySelector('#profile-toggle-stay-logged')?.addEventListener('change', (e) => {
-        const isEnabled = e.target.checked;
-        store.setStayLoggedIn(isEnabled);
-        ToastNotificationManager.show({
-          title: isEnabled ? 'Stay Logged In: Active 🔒' : 'Stay Logged In: Disabled 🔓',
-          message: isEnabled ? 'Session will persist across restarts.' : 'Session will clear upon app close.'
-        });
-      });
-
-      // Handle Firebase Sign In Submit
-      containerEl.querySelector('#form-firebase-login')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = containerEl.querySelector('#auth-signin-email').value.trim();
-        const password = containerEl.querySelector('#auth-signin-password').value;
-        const rememberMe = containerEl.querySelector('#auth-signin-remember')?.checked !== false;
-        const btn = containerEl.querySelector('#btn-submit-signin');
-
-        if (!email || !password) return;
-
-        btn.disabled = true;
-        btn.textContent = 'Signing in...';
-
-        try {
-          await window.firebaseService.signIn(email, password, rememberMe);
-          ToastNotificationManager.show({ title: 'Welcome Back! 🎉', message: `Signed in as ${email}` });
-          this.switchTab('calendar');
-        } catch (err) {
-          console.error('Firebase Sign In Error:', err);
-          let msg = err.message || 'Failed to sign in.';
-          if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-            msg = 'Invalid email or password. Please try again.';
-          } else if (err.code === 'auth/user-not-found') {
-            msg = 'No account found with this email. Click "Create Account" to register.';
-          } else if (err.code === 'auth/too-many-requests') {
-            msg = 'Too many failed attempts. Please wait a moment and try again.';
-          }
-          ToastNotificationManager.show({ title: 'Sign In Failed', message: msg, isConflict: true });
-          btn.disabled = false;
-          btn.textContent = 'Sign In to Firebase 🚀';
-        }
-      });
-
-      // Handle Firebase Sign Up Submit
-      containerEl.querySelector('#form-firebase-register')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const name = containerEl.querySelector('#auth-signup-name').value.trim();
-        const email = containerEl.querySelector('#auth-signup-email').value.trim();
-        const password = containerEl.querySelector('#auth-signup-password').value;
-        const rememberMe = containerEl.querySelector('#auth-signup-remember')?.checked !== false;
-        const btn = containerEl.querySelector('#btn-submit-signup');
-
-        if (!name || !email || !password) return;
-
-        btn.disabled = true;
-        btn.textContent = 'Creating account...';
-
-        try {
-          await window.firebaseService.signUp(email, password, name, rememberMe);
-          ToastNotificationManager.show({ title: 'Account Created! 🎉', message: `Welcome to CollabCal, ${name}!` });
-          this.switchTab('calendar');
-        } catch (err) {
-          console.error('Firebase Sign Up Error:', err);
-          let msg = err.message || 'Failed to create account.';
-          if (err.code === 'auth/email-already-in-use') {
-            msg = 'This email is already registered. Please click "Sign In" instead.';
-          } else if (err.code === 'auth/weak-password') {
-            msg = 'Password should be at least 6 characters.';
-          } else if (err.code === 'auth/invalid-email') {
-            msg = 'Please enter a valid email address.';
-          }
-          ToastNotificationManager.show({ title: 'Sign Up Failed', message: msg, isConflict: true });
-          btn.disabled = false;
-          btn.textContent = 'Create Firebase Account ✨';
+      containerEl.querySelector('#btn-google-login')?.addEventListener('click', () => {
+        if (window.electronAPI && window.electronAPI.openExternalBrowser) {
+          ToastNotificationManager.show({ title: 'Opening Browser', message: 'Please complete sign-in in your web browser.' });
+          window.electronAPI.openExternalBrowser('http://localhost:42899/google-auth.html');
+        } else {
+          ToastNotificationManager.show({ title: 'Error', message: 'External browser routing not available.', isConflict: true });
         }
       });
 

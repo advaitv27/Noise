@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CollabCal - Secure Login</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: var(--bg-body);
+      font-family: 'Inter', sans-serif;
+    }
+    .auth-container {
+      background: var(--bg-surface-elevated);
+      padding: 40px;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      text-align: center;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .status {
+      margin-top: 20px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-container">
+    <img src="assets/icon.png" alt="CollabCal" width="64" style="margin-bottom: 20px;">
+    <h2 style="margin: 0 0 10px 0; color: var(--text-primary);">Secure Login</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 30px;">
+      Sign in securely using your browser. You will be redirected back to the app automatically.
+    </p>
+
+    <button id="btn-google-login" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px;">
+      Continue with Google
+    </button>
+    
+    <div id="status-message" class="status">Waiting for interaction...</div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script>
+    firebase.initializeApp(FIREBASE_APP_CONFIG);
+    const auth = firebase.auth();
+
+    const btn = document.getElementById('btn-google-login');
+    const statusEl = document.getElementById('status-message');
+
+    // Handle incoming redirect tokens
+    auth.getRedirectResult().then(async (result) => {
+      if (result && result.credential) {
+        statusEl.innerText = "Authenticating with app...";
+        const token = result.credential.idToken;
+
+        // Send token to the local Electron server
+        const response = await fetch('http://localhost:42899/__/auth-callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token })
+        });
+
+        if (response.ok) {
+          statusEl.innerText = "Success! You can safely close this browser tab.";
+          statusEl.style.color = "var(--status-success)";
+          document.querySelector('h2').innerText = "Logged In 🎉";
+          btn.style.display = 'none';
+          
+          setTimeout(() => window.close(), 3000);
+        } else {
+          throw new Error('Failed to hand off token to the app.');
+        }
+      }
+    }).catch(err => {
+      console.error(err);
+      statusEl.innerText = "Error: " + err.message;
+      statusEl.style.color = "var(--status-conflict)";
+      btn.disabled = false;
+      btn.innerText = "Try Again";
+    });
+
+    btn.addEventListener('click', async () => {
+      try {
+        btn.disabled = true;
+        statusEl.innerText = "Opening Google Sign-In...";
+        statusEl.style.color = "var(--status-planning)";
+
+        const provider = new firebase.auth.GoogleAuthProvider();
+        // Force account selection to allow switching
+        provider.setCustomParameters({ prompt: 'select_account' });
+        
+        // We can use signInWithRedirect instead of popup to be more mobile/browser friendly if needed,
+        // but signInWithPopup is usually better for Desktop.
+        const result = await auth.signInWithPopup(provider);
+        const credential = firebase.auth.GoogleAuthProvider.credentialFromResult(result);
+        const token = credential.idToken;
+
+        statusEl.innerText = "Authenticating with app...";
+
+        // Send token to the local Electron server
+        const response = await fetch('http://localhost:42899/__/auth-callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token })
+        });
+
+        if (response.ok) {
+          statusEl.innerText = "Success! You can safely close this browser tab.";
+          statusEl.style.color = "var(--status-success)";
+          document.querySelector('h2').innerText = "Logged In 🎉";
+          btn.style.display = 'none';
+          
+          setTimeout(() => window.close(), 3000);
+        } else {
+          throw new Error('Failed to hand off token to the app.');
+        }
+
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "Error: " + err.message;
+        statusEl.style.color = "var(--status-conflict)";
+        btn.disabled = false;
+        btn.innerText = "Try Again";
+      }
+    });
+  </script>
+</body>
+</html>

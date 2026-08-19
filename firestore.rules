@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default: Deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Diagnostics (App startup connection test)
+    match /_diagnostics/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Users & Profiles
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      // Users can only create/update their own profile
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Team Members Duplicate Collection
+    match /team_members/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Teams / Workspaces
+    match /teams/{teamId} {
+      // Anyone authenticated can read a team (to join via code, see roster, etc.)
+      allow read: if request.auth != null;
+      // Anyone authenticated can create a team or update (to add themselves to memberIds)
+      allow write: if request.auth != null;
+    }
+
+    // Events
+    match /events/{eventId} {
+      // Any authenticated user can read events
+      allow read: if request.auth != null;
+      // Any authenticated user can write events
+      allow write: if request.auth != null;
+    }
+  }
+}

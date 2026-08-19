@@ -105,7 +105,42 @@ function sendUpdateStatus(status, data = {}) {
 function startLocalServer() {
   return new Promise((resolve, reject) => {
     localServer = http.createServer((req, res) => {
+      // CORS for auth proxy
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
       let reqPath = decodeURI(req.url.split('?')[0]);
+
+      // Catch Google Auth callback
+      if (req.method === 'POST' && reqPath === '/__/auth-callback') {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            if (data.token && mainWindow) {
+              mainWindow.webContents.send('google-auth-token', data.token);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: true }));
+            } else {
+              res.writeHead(400);
+              res.end('No token');
+            }
+          } catch (e) {
+            res.writeHead(500);
+            res.end('Error');
+          }
+        });
+        return;
+      }
+
       if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
       
       const filePath = path.join(__dirname, 'src', reqPath);

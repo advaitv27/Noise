@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   
   // Platform Info
-  platform: process.platform
+  platform: process.platform,
+
+  // External Auth
+  openExternalBrowser: (url) => require('electron').shell.openExternal(url),
+  onGoogleAuthToken: (callback) => ipcRenderer.on('google-auth-token', (event, token) => callback(token))
 });
 

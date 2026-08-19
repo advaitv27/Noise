@@ -146,7 +146,7 @@ class CalendarView {
                      data-tooltip-title="${e.title}"
                      data-tooltip-member="${member.name}"
                      data-tooltip-time="${timeStr}">
-                  <span class="event-pill-avatar" style="background-color: ${member.color};">${member.avatar}</span>
+                  ${member.avatarUrl ? `<img src="${member.avatarUrl}" class="event-pill-avatar" style="object-fit:cover; background:transparent;">` : `<span class="event-pill-avatar" style="background-color: ${member.color};">${member.avatar}</span>`}
                   <span class="event-pill-time">${timeStr}</span>
                   <span class="event-pill-title">${e.title}</span>
                   ${hasConflict ? `<span class="event-conflict-icon" title="Schedule Conflict Alert">⚠️</span>` : ''}
@@ -274,8 +274,8 @@ class CalendarView {
             return `
               <div style="background: var(--bg-surface-elevated); border: 1px solid ${hasConflict ? 'var(--status-conflict)' : 'var(--border-color)'}; border-left: 4px solid ${member.color}; border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;" data-event-id="${e.id}">
                 <div style="display: flex; align-items: center; gap: 16px;">
-                  <div style="width: 42px; height: 42px; border-radius: 50%; background: ${member.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">
-                    ${member.avatar}
+                  <div style="width: 26px; height: 26px; border-radius: 50%; background: ${member.avatarUrl ? 'transparent' : member.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px;">
+                    ${member.avatarUrl ? `<img src="${member.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : member.avatar}
                   </div>
                   <div>
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -457,8 +457,8 @@ class CalendarView {
               return `
                 <div style="background: var(--bg-surface-elevated); border: 1px solid ${hasConflict ? 'var(--status-conflict)' : 'var(--border-color)'}; border-left: 4px solid ${member.color}; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
                   <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 32px; height: 32px; border-radius: 50%; background: ${member.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
-                      ${member.avatar}
+                    <div style="width: 26px; height: 26px; border-radius: 50%; background: ${member.avatarUrl ? 'transparent' : member.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px; margin-right: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                      ${member.avatarUrl ? `<img src="${member.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : member.avatar}
                     </div>
                     <div>
                       <div style="display: flex; align-items: center; gap: 8px;">

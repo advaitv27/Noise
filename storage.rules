@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Avatar uploads
+    match /avatars/{fileName} {
+      // Anyone can view avatars
+      allow read: if true;
+      // Only authenticated users can upload avatars. 
+      // Filename convention: userId_timestamp.ext
+      allow write: if request.auth != null && fileName.matches(request.auth.uid + '.*');
+    }
+  }
+}
