@@ -17,9 +17,27 @@ class AppStore {
     const savedEvents = localStorage.getItem('collabcal_events');
     const savedProfileStr = localStorage.getItem('collabcal_saved_profile');
 
-    const teams = savedTeams ? JSON.parse(savedTeams) : (typeof INITIAL_TEAMS !== 'undefined' ? INITIAL_TEAMS : []);
-    let teamMembers = savedMembers ? JSON.parse(savedMembers) : INITIAL_TEAM_MEMBERS;
-    const events = savedEvents ? JSON.parse(savedEvents) : INITIAL_EVENTS;
+    let teams = [];
+    try { teams = savedTeams ? JSON.parse(savedTeams) : []; } catch(e) {}
+    if (!Array.isArray(teams) || teams.length === 0) {
+      teams = typeof INITIAL_TEAMS !== 'undefined' && INITIAL_TEAMS.length > 0 ? INITIAL_TEAMS : [{
+        id: 'team_default', name: 'My Workspace', code: 'WRK', icon: '🏢'
+      }];
+    }
+
+    let teamMembers = [];
+    try { teamMembers = savedMembers ? JSON.parse(savedMembers) : []; } catch(e) {}
+    if (!Array.isArray(teamMembers) || teamMembers.length === 0) {
+      teamMembers = typeof INITIAL_TEAM_MEMBERS !== 'undefined' && INITIAL_TEAM_MEMBERS.length > 0 ? INITIAL_TEAM_MEMBERS : [{
+        id: 'user_default', name: 'Guest', email: '', avatar: 'G', color: '#52525b'
+      }];
+    }
+
+    let events = [];
+    try { events = savedEvents ? JSON.parse(savedEvents) : []; } catch(e) {}
+    if (!Array.isArray(events)) {
+      events = typeof INITIAL_EVENTS !== 'undefined' ? INITIAL_EVENTS : [];
+    }
 
     let activeUserId = savedActiveUser;
     if (savedProfileStr) {

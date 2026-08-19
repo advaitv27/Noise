@@ -327,22 +327,44 @@ class AppRouter {
   static renderCurrentTab() {
     const state = store.getState();
 
-    switch (this.activeTab) {
-      case 'home':
-        this.renderHomeTab(document.querySelector('#page-home'), state);
-        break;
-      case 'calendar':
-        this.calendarView.render();
-        break;
-      case 'account':
-        TeamManager.renderAccountTabPage(document.querySelector('#page-account'));
-        break;
-      case 'settings':
-        this.renderSettingsTab(document.querySelector('#page-settings'), state);
-        break;
-      case 'login':
-        this.renderLoginTab(document.querySelector('#page-login'), state);
-        break;
+    try {
+      switch (this.activeTab) {
+        case 'home':
+          this.renderHomeTab(document.querySelector('#page-home'), state);
+          break;
+        case 'calendar':
+          this.calendarView.render();
+          break;
+        case 'account':
+          TeamManager.renderAccountTabPage(document.querySelector('#page-account'));
+          break;
+        case 'settings':
+          this.renderSettingsTab(document.querySelector('#page-settings'), state);
+          break;
+        case 'login':
+          this.renderLoginTab(document.querySelector('#page-login'), state);
+          break;
+      }
+    } catch (err) {
+      console.error('Render Error:', err);
+      const activePage = document.querySelector('.tab-page.active');
+      if (activePage) {
+        activePage.innerHTML = `
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+            <h2 style="color: var(--text-primary); margin-bottom: 10px;">UI Rendering Error</h2>
+            <p style="color: var(--text-secondary); max-width: 400px; margin-bottom: 24px;">
+              The app encountered an error trying to load this page. This usually happens if you updated the app and your old local data is incompatible.
+            </p>
+            <div style="padding: 10px; background: rgba(255,0,0,0.1); border-radius: 8px; color: #ff6b6b; font-family: monospace; font-size: 12px; margin-bottom: 24px; max-width: 500px; text-align: left; overflow: hidden; text-overflow: ellipsis;">
+              ${err.message}
+            </div>
+            <button class="btn btn-primary" onclick="localStorage.clear(); location.reload();" style="background: var(--status-conflict); border-color: var(--status-conflict);">
+              Wipe Local Storage & Reload
+            </button>
+          </div>
+        `;
+      }
     }
   }
 
