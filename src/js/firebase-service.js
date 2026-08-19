@@ -440,7 +440,7 @@ class FirebaseService {
       return null;
     } catch (e) {
       console.error('Error finding team by code:', e);
-      return null;
+      return { error: true, message: e.message };
     }
   }
 

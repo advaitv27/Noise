@@ -165,7 +165,7 @@ class AppStore {
   }
 
   joinTeamByCode(code) {
-    const trimmedCode = (code || '').trim().toUpperCase();
+    const trimmedCode = (code || '').replace(/\s+/g, '').toUpperCase();
     const existingTeam = this.state.teams.find(t => t.code === trimmedCode);
 
     if (existingTeam) {
@@ -180,6 +180,9 @@ class AppStore {
     // Try finding via Firebase
     if (window.firebaseService && window.firebaseService.isInitialized) {
       return window.firebaseService.findTeamByCode(trimmedCode).then(cloudTeam => {
+        if (cloudTeam && cloudTeam.error) {
+          return { success: false, reason: `Firebase Error: ${cloudTeam.message}` };
+        }
         if (cloudTeam) {
           if (!this.state.teams.some(t => t.id === cloudTeam.id)) {
             this.state.teams.push(cloudTeam);
