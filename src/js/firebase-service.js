@@ -816,6 +816,62 @@ class FirebaseService {
     }
   }
 
+  async signUpWithEmail(email, password) {
+    if (!this.auth) throw new Error('Firebase Auth is not initialized');
+    
+    const cred = await this.auth.createUserWithEmailAndPassword(email, password);
+    this.currentUser = cred.user;
+
+    const displayName = email.split('@')[0];
+    const avatar = displayName.slice(0, 2).toUpperCase();
+    const colors = ['#8b5cf6', '#10b981', '#06b6d4', '#f43f5e', '#f59e0b', '#3b82f6'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+    const profile = {
+      id: cred.user.uid,
+      uid: cred.user.uid,
+      name: displayName,
+      email: email,
+      role: 'Team Member',
+      avatar: avatar,
+      color: randomColor,
+      workingHours: { start: '09:00', end: '17:00' },
+      active: true,
+      provider: 'password',
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString()
+    };
+
+    if (this.db) {
+      await this.db.collection('users').doc(cred.user.uid).set(profile);
+      await this.db.collection('team_members').doc(cred.user.uid).set(profile);
+    }
+
+    if (window.store) {
+      window.store.setActiveUserFromFirebase(profile, true);
+      window.store.setFirebaseUser(cred.user);
+    }
+    
+    return cred.user;
+  }
+
+  async signInWithEmail(email, password) {
+    if (!this.auth) throw new Error('Firebase Auth is not initialized');
+    
+    const cred = await this.auth.signInWithEmailAndPassword(email, password);
+    this.currentUser = cred.user;
+
+    if (this.db) {
+      try {
+        await this.db.collection('users').doc(cred.user.uid).update({
+          lastLoginAt: new Date().toISOString()
+        });
+      } catch (e) { }
+    }
+
+    return cred.user;
+  }
+
   async signInAnonymously() {
     if (!this.auth) throw new Error('Firebase Auth is not initialized');
     const cred = await this.auth.signInAnonymously();
