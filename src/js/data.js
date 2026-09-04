@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Date Utilities, Data Definitions & Initial Schema
+   Noise Desktop - Date Utilities, Data Definitions & Initial Schema
    ========================================================================== */
 
 const DateUtils = {

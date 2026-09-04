@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Core Calendar View Component (Month / Week / Day)
+   Noise Desktop - Core Calendar View Component (Month / Week / Day)
    ========================================================================== */
 
 class CalendarView {
@@ -236,24 +236,27 @@ class CalendarView {
     const teamMembers = store.getActiveTeamMembers();
     const dayEvents = teamEvents.filter(e => state.visibleMemberIds.has(e.memberId) && e.start.startsWith(dateIso));
     const conflictingIds = ConflictEngine.getConflictingEventIds(teamEvents);
-    const availabilitySlots = ConflictEngine.getTeamAvailabilityForDay(teamEvents, teamMembers, dateIso);
+    const freeWindows = ConflictEngine.getTeamFreeWindowsForDay(teamEvents, teamMembers, dateIso);
 
     let html = `
       <div style="padding: 20px; display: flex; flex-direction: column; gap: 20px; height: 100%; overflow-y: auto;">
         <!-- Availability Bar -->
         <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 18px;">
-          <div style="font-weight: 700; font-size: 13px; color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
-            <span>🤝 Team Availability Overlap Heatmap (${currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })})</span>
-            <span style="font-size: 11px; color: var(--status-success); font-weight: 600;">Green = All Team Members Free</span>
+          <div style="font-weight: 700; font-size: 13px; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <span>🤝 Team Free Windows (${currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })})</span>
+            <span style="font-size: 11px; color: var(--text-secondary);">When all members are available</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px;">
-            ${availabilitySlots.map(slot => `
-              <div style="background: ${slot.isAllFree ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.15)'}; border: 1px solid ${slot.isAllFree ? 'var(--status-success)' : 'rgba(239, 68, 68, 0.4)'}; border-radius: 6px; padding: 6px 2px; text-align: center;" title="${slot.timeStr}: ${slot.freeCount} members free">
-                <div style="font-size: 10px; font-weight: 700; color: ${slot.isAllFree ? 'var(--status-success)' : 'var(--status-conflict)'};">${slot.timeStr}</div>
-                <div style="font-size: 9px; color: var(--text-secondary);">${slot.isAllFree ? 'FREE' : 'BUSY'}</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${freeWindows.length > 0 ? freeWindows.map(w => `
+              <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 12px; font-weight: 700; color: var(--status-success);">${w.startStr.replace(' ', '')}</span>
+                <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); opacity: 0.8;">to</span>
+                <span style="font-size: 12px; font-weight: 700; color: var(--status-success);">${w.endStr.replace(' ', '')}</span>
               </div>
-            `).join('')}
+            `).join('') : `
+              <div style="font-size: 12px; color: var(--text-secondary); font-style: italic;">No common free time available today.</div>
+            `}
           </div>
         </div>
 
@@ -329,9 +332,12 @@ class CalendarView {
         e.stopPropagation();
         if (e.target.classList.contains('btn-delete-event')) {
           const eventId = e.target.getAttribute('data-event-id');
-          if (confirm('Delete this event?')) {
+          AppRouter.confirm('Delete Event', 'Delete this event?', () => {
+            if (window.firebaseService && window.firebaseService.isInitialized) {
+              window.firebaseService.deleteEvent(eventId).catch(console.warn);
+            }
             store.deleteEvent(eventId);
-          }
+          });
           return;
         }
 

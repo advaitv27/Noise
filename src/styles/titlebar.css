@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Custom Title Bar (Frameless Desktop Control)
+   Noise Desktop - Custom Title Bar (Frameless Desktop Control)
    ========================================================================== */
 
 .desktop-titlebar {
@@ -167,8 +167,19 @@
 }
 
 .active-user-pill:hover {
-  background: var(--bg-surface-elevated);
+  background: var(--bg-surface-hover);
   border-color: var(--border-color-strong);
+}
+
+.theme-adaptive-logo {
+  width: 16px;
+  height: 16px;
+  filter: invert(1) brightness(0.8);
+  transition: filter 0.2s;
+}
+
+[data-theme="light"] .theme-adaptive-logo {
+  filter: invert(0) brightness(0.2);
 }
 
 .user-avatar-sm {
@@ -231,3 +242,44 @@
   stroke-width: 2;
   fill: none;
 }
+
+/* ==========================================================================
+   Mobile Responsive Adjustments
+   ========================================================================== */
+@media (max-width: 768px) {
+  .desktop-titlebar {
+    padding: 0 12px;
+    height: 52px; /* Taller header for mobile touch targets */
+    -webkit-app-region: no-drag; /* Disable drag on mobile */
+  }
+
+  .window-controls {
+    display: none !important;
+  }
+
+  .titlebar-center {
+    margin: 0 8px;
+  }
+
+  .search-box {
+    padding: 6px 10px;
+  }
+
+  .search-input {
+    font-size: 14px; /* Larger font for mobile */
+  }
+
+  .kbd-shortcut {
+    display: none;
+  }
+
+  #sync-status-text {
+    display: none;
+  }
+  
+  .sync-status {
+    padding: 4px;
+    border-radius: 50%;
+  }
+}
+

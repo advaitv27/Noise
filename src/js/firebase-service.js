@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Firebase Authentication & Cloud Firestore Service
+   Noise Desktop - Firebase Authentication & Cloud Firestore Service
    ========================================================================== */
 
 class FirebaseService {
@@ -17,12 +17,26 @@ class FirebaseService {
 
     // Load saved configuration from localStorage
     this.config = this.getSavedConfig();
+
+    if (window.electronAPI && window.electronAPI.onAppQuitting) {
+      window.electronAPI.onAppQuitting(async () => {
+        if (this.isInitialized && this.db && this.currentUser && this.currentUser.uid) {
+          try {
+            await this.db.collection('team_members').doc(this.currentUser.uid).update({
+              lastActiveAt: 0 // Instantly set offline (0 timestamp)
+            });
+          } catch (e) {
+            console.error('Failed to set offline status on quit:', e);
+          }
+        }
+      });
+    }
   }
 
   // --- Configuration Management ---
   getSavedConfig() {
     try {
-      const saved = localStorage.getItem('collabcal_firebase_config');
+      const saved = localStorage.getItem('noise_firebase_config');
       if (saved) {
         return JSON.parse(saved);
       }
@@ -40,7 +54,7 @@ class FirebaseService {
 
   saveConfig(configObj) {
     try {
-      localStorage.setItem('collabcal_firebase_config', JSON.stringify(configObj));
+      localStorage.setItem('noise_firebase_config', JSON.stringify(configObj));
       this.config = configObj;
       return true;
     } catch (e) {
@@ -50,7 +64,7 @@ class FirebaseService {
   }
 
   clearConfig() {
-    localStorage.removeItem('collabcal_firebase_config');
+    localStorage.removeItem('noise_firebase_config');
     this.config = null;
     this.disconnect();
     this.setStatus('unconfigured');
@@ -116,7 +130,7 @@ class FirebaseService {
       this.auth.onAuthStateChanged((user) => {
         this.currentUser = user;
         if (user && !user.isAnonymous) {
-          const displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'CollabCal User');
+          const displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'Noise User');
           const avatar = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'US';
 
           const profile = {
@@ -137,6 +151,7 @@ class FirebaseService {
 
           // Re-attach authenticated Firestore real-time listeners
           this.attachRealtimeListeners();
+          this.startPresenceHeartbeat();
 
           // Fetch full profile document asynchronously in background
           if (this.db) {
@@ -147,21 +162,23 @@ class FirebaseService {
             }).catch(e => console.warn('Background profile fetch notice:', e));
           }
         } else if (!user) {
-          const stayLoggedIn = localStorage.getItem('collabcal_stay_logged_in') === 'true';
-          const savedEmail = localStorage.getItem('collabcal_saved_email');
-          const savedPassEncoded = localStorage.getItem('collabcal_saved_password');
+          if (this._presenceInterval) clearInterval(this._presenceInterval);
+          this._presenceInterval = null;
+          const stayLoggedIn = localStorage.getItem('noise_stay_logged_in') === 'true';
+          const savedEmail = localStorage.getItem('noise_saved_email');
+          const savedPassEncoded = localStorage.getItem('noise_saved_password');
 
           if (stayLoggedIn && savedEmail && savedPassEncoded && !this._hasAttemptedAutoLogin) {
             this._hasAttemptedAutoLogin = true;
             try {
               const pass = atob(savedPassEncoded);
               this.auth.signInWithEmailAndPassword(savedEmail, pass).catch(() => {
-                localStorage.removeItem('collabcal_saved_password');
+                localStorage.removeItem('noise_saved_password');
                 if (window.store) window.store.setFirebaseUser(null);
               });
               return; // Early return to let the next auth state change handle success
             } catch (e) {
-              localStorage.removeItem('collabcal_saved_password');
+              localStorage.removeItem('noise_saved_password');
             }
           }
 
@@ -257,6 +274,30 @@ class FirebaseService {
       );
     } catch (e) {
       console.error('Failed to attach teams listener:', e);
+    }
+  }
+
+  startPresenceHeartbeat() {
+    if (!this.db || !this.currentUser || !this.currentUser.uid) return;
+
+    const updatePresence = () => {
+      if (!navigator.onLine) return;
+      
+      // Use set with merge to ensure doc exists and handles offline queueing robustly
+      this.db.collection('team_members').doc(this.currentUser.uid).set({
+        lastActiveAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(() => {}); 
+    };
+
+    updatePresence();
+    if (this._presenceInterval) clearInterval(this._presenceInterval);
+    // Ping presence every 2 minutes
+    this._presenceInterval = setInterval(updatePresence, 120000);
+
+    if (!this._presenceListenersAttached) {
+      window.addEventListener('online', updatePresence);
+      window.addEventListener('focus', updatePresence);
+      this._presenceListenersAttached = true;
     }
   }
 
@@ -498,6 +539,176 @@ class FirebaseService {
     }
   }
 
+  // --- Team Chat Messaging ---
+  async sendChatMessage(teamId, channelId, messageData) {
+    if (!this.isInitialized || !this.db) {
+      throw new Error('Firebase is not connected.');
+    }
+
+    try {
+      const cleanData = this.sanitizeForFirestore(messageData);
+      const docRef = this.db.collection('teams').doc(teamId)
+        .collection('messages').doc();
+
+      await docRef.set({
+        ...cleanData,
+        id: docRef.id,
+        teamId: teamId,
+        channelId: channelId || 'general',
+        createdAt: Date.now(),
+        serverTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      return { success: true, id: docRef.id };
+    } catch (e) {
+      console.error('Error sending chat message:', e);
+      throw e;
+    }
+  }
+
+  async deleteChatMessage(teamId, messageId) {
+    if (!this.isInitialized || !this.db) {
+      throw new Error('Firebase is not connected.');
+    }
+
+    try {
+      await this.db.collection('teams').doc(teamId)
+        .collection('messages').doc(messageId).delete();
+      return { success: true };
+    } catch (e) {
+      console.error('Error deleting chat message:', e);
+      throw e;
+    }
+  }
+
+  async editChatMessage(teamId, messageId, newText) {
+    if (!this.isInitialized || !this.db) {
+      throw new Error('Firebase is not connected.');
+    }
+
+    try {
+      await this.db.collection('teams').doc(teamId)
+        .collection('messages').doc(messageId).update({
+          text: newText,
+          editedAt: Date.now()
+        });
+      return { success: true };
+    } catch (e) {
+      console.error('Error editing chat message:', e);
+      throw e;
+    }
+  }
+
+  async addChannel(teamId, channel) {
+    if (!this.isInitialized || !this.db) {
+      throw new Error('Firebase is not connected.');
+    }
+
+    try {
+      const docRef = this.db.collection('teams').doc(teamId);
+      const docSnap = await docRef.get();
+      const data = docSnap.data();
+
+      // If channels array doesn't exist, seed it with ['general', channel]
+      if (!data.channels || data.channels.length === 0) {
+        await docRef.update({
+          channels: ['general', channel]
+        });
+      } else {
+        await docRef.update({
+          channels: firebase.firestore.FieldValue.arrayUnion(channel)
+        });
+      }
+      return { success: true };
+    } catch (e) {
+      console.error('Error adding channel:', e);
+      throw e;
+    }
+  }
+
+  async editChannel(teamId, oldName, newName) {
+    if (!this.isInitialized || !this.db) {
+      throw new Error('Firebase is not connected.');
+    }
+    if (oldName === 'general') throw new Error('Cannot rename the general channel.');
+
+    try {
+      const docRef = this.db.collection('teams').doc(teamId);
+      
+      // Update the channel name in the array
+      await docRef.update({
+        channels: firebase.firestore.FieldValue.arrayRemove(oldName)
+      });
+      await docRef.update({
+        channels: firebase.firestore.FieldValue.arrayUnion(newName)
+      });
+
+      // Batch update message channelIds
+      const messagesRef = docRef.collection('messages');
+      const snapshot = await messagesRef.where('channelId', '==', oldName).get();
+      
+      if (!snapshot.empty) {
+        let batch = this.db.batch();
+        let count = 0;
+        
+        snapshot.forEach(doc => {
+          batch.update(doc.ref, { channelId: newName });
+          count++;
+          // Firestore batches max out at 500 operations, but for this app it should be fine.
+          // Ideally, we'd chunk this if > 500.
+        });
+        
+        if (count > 0) {
+          await batch.commit();
+        }
+      }
+
+      return { success: true };
+    } catch (e) {
+      console.error('Error editing channel:', e);
+      throw e;
+    }
+  }
+
+  async deleteChannel(teamId, channelName) {
+    if (!this.isInitialized || !this.db) {
+      throw new Error('Firebase is not connected.');
+    }
+    if (channelName === 'general') throw new Error('Cannot delete the general channel.');
+
+    try {
+      const docRef = this.db.collection('teams').doc(teamId);
+      
+      // Remove from array
+      await docRef.update({
+        channels: firebase.firestore.FieldValue.arrayRemove(channelName)
+      });
+
+      // Batch delete messages in the channel
+      const messagesRef = docRef.collection('messages');
+      const snapshot = await messagesRef.where('channelId', '==', channelName).get();
+      
+      if (!snapshot.empty) {
+        let batch = this.db.batch();
+        let count = 0;
+        
+        snapshot.forEach(doc => {
+          batch.delete(doc.ref);
+          count++;
+        });
+        
+        if (count > 0) {
+          await batch.commit();
+        }
+      }
+
+      return { success: true };
+    } catch (e) {
+      console.error('Error deleting channel:', e);
+      throw e;
+    }
+  }
+
   // --- 1-Click Database Seeding Utility ---
   async seedFirestoreFromLocal(events, members, teams = null) {
     if (!this.isInitialized || !this.db) {
@@ -589,9 +800,13 @@ class FirebaseService {
     if (!this.isInitialized || !firebase.storage) {
       throw new Error('Firebase Storage is not initialized.');
     }
+    if (!this.currentUser) {
+      throw new Error('Must be logged in to upload a profile picture.');
+    }
     try {
+      const ext = file.name.split('.').pop() || 'png';
       const storageRef = firebase.storage().ref();
-      const avatarRef = storageRef.child(`avatars/${userId}_${Date.now()}`);
+      const avatarRef = storageRef.child(`avatars/${userId}_${Date.now()}.${ext}`);
       await avatarRef.put(file);
       const downloadURL = await avatarRef.getDownloadURL();
       return downloadURL;
@@ -617,7 +832,7 @@ class FirebaseService {
       const pingRef = this.db.collection('_diagnostics').doc('connection_test');
       await pingRef.set({
         pingAt: new Date().toISOString(),
-        client: 'CollabCal Desktop',
+        client: 'Noise Desktop',
         uid: this.auth?.currentUser?.uid || 'unauthenticated'
       }, { merge: true });
 
@@ -640,14 +855,7 @@ class FirebaseService {
     }
   }
 
-  async uploadProfilePicture(file, userId) {
-    if (!firebase.storage) throw new Error("Firebase Storage is not initialized.");
-    if (!this.currentUser) throw new Error("Must be logged in to upload a profile picture.");
-    const storageRef = firebase.storage().ref();
-    const avatarRef = storageRef.child('avatars/' + userId + '_' + Date.now());
-    await avatarRef.put(file);
-    return await avatarRef.getDownloadURL();
-  }
+
 
   async deleteAccountData() {
     if (!this.auth || !this.currentUser || !this.db) {
@@ -704,6 +912,32 @@ class FirebaseService {
     }
   }
 
+  // --- AI Activity Tracking (Dynamic Rate Limiting) ---
+  async pingAiActivity() {
+    if (!this.db || !this.currentUser || !this.currentUser.uid) return;
+    try {
+      await this.db.collection('ai_activity').doc(this.currentUser.uid).set({
+        lastActive: Date.now()
+      }, { merge: true });
+    } catch (e) {
+      console.warn("Failed to ping AI activity:", e);
+    }
+  }
+
+  async getActiveAiUserCount() {
+    if (!this.db) return 1; // Default to 1 to prevent division by zero
+    try {
+      const windowStart = Date.now() - (15 * 1000); // 15 seconds window
+      const snap = await this.db.collection('ai_activity')
+        .where('lastActive', '>=', windowStart)
+        .get();
+      return Math.max(1, snap.size);
+    } catch (e) {
+      console.warn("Failed to get active AI users:", e);
+      return 1;
+    }
+  }
+
   async signOut() {
     if (!this.auth) return;
     try {
@@ -712,7 +946,7 @@ class FirebaseService {
       console.warn('Sign out notice:', e);
     }
     this.currentUser = null;
-    localStorage.removeItem('collabcal_saved_password');
+    localStorage.removeItem('noise_saved_password');
     if (window.store) {
       window.store.clearActiveUser();
     }

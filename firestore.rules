@@ -31,6 +31,15 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Anyone authenticated can create a team or update (to add themselves to memberIds)
       allow write: if request.auth != null;
+
+      // Team Chat Messages (subcollection)
+      match /messages/{messageId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+                      && request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if request.auth != null
+                              && resource.data.senderId == request.auth.uid;
+      }
     }
 
     // Events
@@ -39,6 +48,13 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Any authenticated user can write events
       allow write: if request.auth != null;
+    }
+    
+    // --- AI Activity Rules ---
+    // Users can read the activity of others (to calculate load) and update their own activity
+    match /ai_activity/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

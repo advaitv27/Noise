@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Conflict Engine & Group Availability Calculator
+   Noise Desktop - Conflict Engine & Group Availability Calculator
    ========================================================================== */
 
 class ConflictEngine {
@@ -60,14 +60,14 @@ class ConflictEngine {
    * Finds 30-min window slots where ALL active team members are free.
    */
   static getTeamAvailabilityForDay(events, teamMembers, targetDateStr) {
-    // Standard working hours 9 AM to 5 PM (9 to 17)
+    // Full 24-hour day (0 to 24)
     const slots = [];
     const dateObj = DateUtils.parseLocalDateTime(targetDateStr);
     const dayYear = dateObj.getFullYear();
     const dayMonth = dateObj.getMonth();
     const dayDate = dateObj.getDate();
 
-    for (let hour = 9; hour < 17; hour++) {
+    for (let hour = 6; hour < 28; hour++) {
       for (let min = 0; min < 60; min += 30) {
         const slotStart = new Date(dayYear, dayMonth, dayDate, hour, min).getTime();
         const slotEnd = slotStart + (30 * 60 * 1000);
@@ -90,10 +90,21 @@ class ConflictEngine {
         const freeMembersCount = teamMembers.length - busyMembers.size;
         const isAllFree = busyMembers.size === 0;
 
+        const currentDayHour = hour % 24;
+        const ampm = currentDayHour >= 12 ? 'PM' : 'AM';
+        const displayHour = currentDayHour % 12 || 12;
+
+        const endHour = min === 30 ? hour + 1 : hour;
+        const endMin = min === 30 ? 0 : 30;
+        const endDayHour = endHour % 24;
+        const endAmpm = endDayHour >= 12 ? 'PM' : 'AM';
+        const endDisplayHour = endDayHour % 12 || 12;
+
         slots.push({
           hour,
           min: min === 0 ? '00' : '30',
-          timeStr: `${hour}:${min === 0 ? '00' : '30'}`,
+          timeStr: `${displayHour}:${min === 0 ? '00' : '30'} ${ampm}`,
+          endTimeStr: `${endDisplayHour}:${endMin === 0 ? '00' : '30'} ${endAmpm}`,
           busyCount: busyMembers.size,
           freeCount: freeMembersCount,
           isAllFree
@@ -102,5 +113,36 @@ class ConflictEngine {
     }
 
     return slots;
+  }
+
+  /**
+   * Generates continuous windows of free time for the team on a given day.
+   */
+  static getTeamFreeWindowsForDay(events, teamMembers, dateIso) {
+    const slots = this.getTeamAvailabilityForDay(events, teamMembers, dateIso);
+    
+    const freeWindows = [];
+    let currentWindow = null;
+
+    slots.forEach((slot, index) => {
+      if (slot.isAllFree) {
+        if (!currentWindow) {
+          currentWindow = { startStr: slot.timeStr, endStr: slot.endTimeStr };
+        } else {
+          currentWindow.endStr = slot.endTimeStr;
+        }
+      } else {
+        if (currentWindow) {
+          freeWindows.push(currentWindow);
+          currentWindow = null;
+        }
+      }
+    });
+
+    if (currentWindow) {
+      freeWindows.push(currentWindow);
+    }
+
+    return freeWindows;
   }
 }

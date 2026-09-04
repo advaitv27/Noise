@@ -11,6 +11,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Native Desktop Notifications
   showNotification: (options) => ipcRenderer.send('show-notification', options),
 
+  // Startup Settings
+  getLoginItemSettings: () => ipcRenderer.invoke('get-login-item-settings'),
+  setLoginItemSettings: (openAtLogin) => ipcRenderer.send('set-login-item-settings', openAtLogin),
+
   // File Export
   exportFile: (options) => ipcRenderer.invoke('export-file', options),
 
@@ -20,11 +24,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   
+  // Secure AI Configuration
+  getAIKey: () => ipcRenderer.invoke('get-ai-key'),
+  
   // Platform Info
   platform: process.platform,
 
   // External Auth
   openExternalBrowser: (url) => require('electron').shell.openExternal(url),
-  onGoogleAuthToken: (callback) => ipcRenderer.on('google-auth-token', (event, token) => callback(token))
+  onGoogleAuthToken: (callback) => ipcRenderer.on('google-auth-token', (event, token) => callback(token)),
+  onAppQuitting: (callback) => ipcRenderer.on('app-quitting', callback)
 });
 

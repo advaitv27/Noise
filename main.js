@@ -3,6 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 let mainWindow;
 let localServer;
@@ -201,7 +202,7 @@ const CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit
 app.userAgentFallback = CHROME_USER_AGENT;
 
 // Enforce persistent storage directory even for portable mode
-const persistentDataPath = path.join(app.getPath('appData'), 'CollabCalDesktop');
+const persistentDataPath = path.join(app.getPath('appData'), 'NoiseDesktop');
 app.setPath('userData', persistentDataPath);
 
 async function createWindow() {
@@ -247,6 +248,10 @@ async function createWindow() {
 
   // Load from local HTTP server on localhost (which is pre-authorized by Firebase Auth by default)
   mainWindow.loadURL(`http://localhost:${localPort}/index.html`);
+
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[RENDERER] ${message} (${sourceId}:${line})`);
+  });
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -302,6 +307,23 @@ ipcMain.handle('window-is-maximized', () => {
   return mainWindow ? mainWindow.isMaximized() : false;
 });
 
+// Secure API Key Retrieval
+ipcMain.handle('get-ai-key', () => {
+  return process.env.GEMINI_API_KEY || '';
+});
+
+// Startup/Login Item IPC handlers
+ipcMain.handle('get-login-item-settings', () => {
+  return app.getLoginItemSettings().openAtLogin;
+});
+
+ipcMain.on('set-login-item-settings', (event, openAtLogin) => {
+  app.setLoginItemSettings({
+    openAtLogin,
+    openAsHidden: false
+  });
+});
+
 // --- Auto-Update IPC handlers ---
 ipcMain.on('restart-to-update', () => {
   autoUpdater.quitAndInstall(false, true);
@@ -321,7 +343,7 @@ ipcMain.handle('get-app-version', () => {
 ipcMain.on('show-notification', (event, { title, body, icon }) => {
   if (Notification.isSupported()) {
     new Notification({
-      title: title || 'CollabCal',
+      title: title || 'Noise',
       body: body || '',
       icon: icon ? path.join(__dirname, icon) : undefined
     }).show();
@@ -332,7 +354,7 @@ ipcMain.on('show-notification', (event, { title, body, icon }) => {
 ipcMain.handle('export-file', async (event, { defaultName, content, filters }) => {
   const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
     title: 'Export Calendar Data',
-    defaultPath: defaultName || 'collabcal-export.json',
+    defaultPath: defaultName || 'noise-export.json',
     filters: filters || [{ name: 'JSON Files', extensions: ['json'] }, { name: 'iCalendar', extensions: ['ics'] }, { name: 'All Files', extensions: ['*'] }]
   });
 
@@ -359,6 +381,17 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
     else if (mainWindow) mainWindow.show();
   });
+});
+
+app.on('before-quit', (e) => {
+  if (!app.isCleanupDone && mainWindow && !mainWindow.isDestroyed()) {
+    e.preventDefault();
+    mainWindow.webContents.send('app-quitting');
+    setTimeout(() => {
+      app.isCleanupDone = true;
+      app.quit();
+    }, 1500);
+  }
 });
 
 app.on('window-all-closed', () => {

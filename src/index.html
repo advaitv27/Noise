@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="styles/titlebar.css">
   <link rel="stylesheet" href="styles/components.css">
   <link rel="stylesheet" href="styles/calendar.css">
+  <link rel="stylesheet" href="styles/chat.css">
   <link rel="stylesheet" href="styles/update.css">
 </head>
 <body>
@@ -25,6 +26,9 @@
   <!-- Custom Native Desktop Title Bar -->
   <header class="desktop-titlebar">
     <div class="titlebar-left">
+      <button id="sidebar-toggle-btn" class="theme-toggle-btn" title="Toggle Sidebar" style="margin-right: 12px; padding: 4px; display: flex; align-items: center; justify-content: center; -webkit-app-region: no-drag;">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
       <div class="app-brand">
         <img src="assets/icon.png" alt="Noise" class="brand-logo" />
       </div>
@@ -44,6 +48,11 @@
     </div>
 
     <div class="titlebar-right">
+      <!-- Decibel AI Assistant Toggle -->
+      <button class="theme-toggle-btn" id="ai-topbar-btn" title="Open Decibel Assistant">
+        <img src="assets/decibel-logo.png" class="theme-adaptive-logo" alt="Decibel">
+      </button>
+
       <!-- Quick Theme Toggle -->
       <button class="theme-toggle-btn" id="titlebar-theme-toggle" title="Toggle Dark / Light Theme">
         🌙
@@ -94,6 +103,11 @@
           <span>Calendar</span>
           <span class="nav-badge" id="conflict-nav-badge" style="display: none;">1 alert</span>
         </li>
+        <li class="nav-item" data-tab="chat">
+          <span class="nav-icon">💬</span>
+          <span>Chat</span>
+          <span class="chat-nav-badge" id="chat-nav-badge" style="display: none;">0</span>
+        </li>
         <li class="nav-item" data-tab="account">
           <span class="nav-icon">👤</span>
           <span>Account & Team</span>
@@ -136,6 +150,9 @@
       <!-- 📅 CALENDAR TAB -->
       <div class="tab-page" id="page-calendar"></div>
 
+      <!-- 💬 CHAT TAB -->
+      <div class="tab-page" id="page-chat"></div>
+
       <!-- 👤 ACCOUNT TAB -->
       <div class="tab-page" id="page-account"></div>
 
@@ -173,6 +190,33 @@
       </button>
     </div>
   </div>
+  <!-- AI Assistant Floating Widget -->
+  <div id="ai-chat-widget" class="ai-widget collapsed">
+    <div class="ai-widget-header">
+      <div class="ai-widget-title">
+        <span style="font-size: 16px;">✨</span> Decibel
+      </div>
+      <button id="ai-widget-toggle" class="ai-widget-close" title="Toggle Decibel">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <div class="ai-widget-body" id="ai-chat-history">
+      <div class="ai-message model">
+        Hi! I'm Decibel, your calendar assistant. Ask me what you have planned or what your team is working on.
+      </div>
+    </div>
+    <div class="ai-widget-footer">
+      <input type="text" id="ai-chat-input" placeholder="Ask something..." autocomplete="off" />
+      <button id="ai-chat-send" class="ai-send-icon-btn" title="Send message">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+
+
   <div class="modal-overlay" id="global-modal">
     <div class="modal-container">
       <div class="modal-header">
@@ -194,9 +238,11 @@
   <script src="js/firebase-service.js"></script>
   <script src="js/data.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/ai-service.js"></script>
   <script src="js/conflict.js"></script>
   <script src="js/team.js"></script>
   <script src="js/calendar.js"></script>
+  <script src="js/chat.js"></script>
   <script src="js/notifications.js"></script>
   <script src="js/app.js"></script>
   <script src="js/updater.js"></script>

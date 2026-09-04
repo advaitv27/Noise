@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Multi-Team Manager & Workspace Orchestrator
+   Noise Desktop - Multi-Team Manager & Workspace Orchestrator
    ========================================================================== */
 
 class TeamManager {
@@ -31,10 +31,13 @@ class TeamManager {
           <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
         <div class="member-dot-online" style="background-color: ${member.color}"></div>
-        <span style="color: var(--text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${member.name}</span>
-        <span style="font-size: 10px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: ${member.avatarUrl ? 'transparent' : 'var(--bg-surface)'};">
-          ${member.avatarUrl ? `<img src="${member.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : member.avatar}
-        </span>
+        <span style="color: var(--text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${AppRouter.escapeHtml(member.name)}</span>
+        <div class="avatar-container" style="position: relative;" onclick="event.stopPropagation(); AppRouter.openMemberProfile('${member.id}')">
+          <span style="font-size: 10px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: ${member.avatarUrl ? 'transparent' : 'var(--bg-surface)'};">
+            ${member.avatarUrl ? `<img src="${member.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : member.avatar}
+          </span>
+          <div class="user-presence-dot ${store.isUserOnline(member) ? 'online' : ''}" style="width: 6px; height: 6px; right: -1px; bottom: 0; border-width: 1px;"></div>
+        </div>
       `;
 
       chip.addEventListener('click', () => {
@@ -260,9 +263,12 @@ class TeamManager {
             <div class="profile-card-option ${m.id === activeUser.id ? 'active' : ''}" 
                  data-user-id="${m.id}"
                  style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: 1px solid ${m.id === activeUser.id ? m.color : 'var(--border-color)'}; border-radius: 12px; background: ${m.id === activeUser.id ? 'var(--bg-surface-elevated)' : 'var(--bg-surface)'}; cursor: pointer; transition: all 0.15s ease;">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 36px; height: 36px; border-radius: 50%; background: ${m.avatarUrl ? 'transparent' : m.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">
-                  ${m.avatarUrl ? `<img src="${m.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : m.avatar}
+              <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                <div class="avatar-container" onclick="AppRouter.openMemberProfile('${m.id}')">
+                  <div style="width: 36px; height: 36px; border-radius: 50%; background: ${m.avatarUrl ? 'transparent' : m.color}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">
+                    ${m.avatarUrl ? `<img src="${m.avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : m.avatar}
+                  </div>
+                  <div class="user-presence-dot ${store.isUserOnline(m) ? 'online' : ''}"></div>
                 </div>
                 <div>
                   <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">${m.name}</div>
@@ -453,7 +459,13 @@ class TeamManager {
 
                 <div style="display: flex; align-items: center; gap: 12px;">
                   <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary);">
-                    <div style="width: 12px; height: 12px; border-radius: 50%; background: ${member.color}"></div>
+                    ${member.id === store.getActiveUser()?.id ? `
+                      <div style="position: relative; width: 14px; height: 14px; border-radius: 50%; background: ${member.color}; overflow: hidden; cursor: pointer; border: 1px solid rgba(255,255,255,0.2);" title="Change your color">
+                        <input type="color" class="color-picker-input" data-member-id="${member.id}" value="${member.color}" style="position: absolute; opacity: 0; top: -10px; left: -10px; width: 40px; height: 40px; cursor: pointer;">
+                      </div>
+                    ` : `
+                      <div style="width: 12px; height: 12px; border-radius: 50%; background: ${member.color}"></div>
+                    `}
                     ${member.color}
                   </div>
                   ${activeTeam.ownerId === store.getActiveUser()?.id && member.id !== activeTeam.ownerId ? `
@@ -483,28 +495,37 @@ class TeamManager {
         const teamId = btn.getAttribute('data-team-id');
         const teamName = btn.getAttribute('data-team-name') || 'this team';
 
-        if (confirm(`Are you sure you want to leave "${teamName}"?`)) {
-          const res = store.leaveTeam(teamId);
-          if (res.success) {
-            ToastNotificationManager.show({ title: 'Left Team 🚪', message: `You have left "${res.teamName}".` });
+        AppRouter.confirm(
+          'Leave Team',
+          `Are you sure you want to leave "${teamName}"?`,
+          () => {
+            const res = store.leaveTeam(teamId);
+            if (res.success) {
+              ToastNotificationManager.show({ title: 'Left Team 🚪', message: `You have left "${res.teamName}".` });
+            }
           }
-        }
+        );
       });
     });
 
     // Delete Team Handler
     containerEl.querySelector('#btn-delete-team')?.addEventListener('click', () => {
-      if (confirm(`🚨 WARNING: Are you sure you want to permanently delete "${activeTeam.name}"? This action cannot be undone.`)) {
-        if (window.firebaseService && window.firebaseService.isInitialized) {
-          window.firebaseService.deleteTeam(activeTeam.id).catch(console.warn);
+      AppRouter.confirm(
+        'Delete Workspace',
+        `🚨 WARNING: Are you sure you want to permanently delete "${activeTeam.name}"?\nThis action cannot be undone.`,
+        () => {
+          if (window.firebaseService && window.firebaseService.isInitialized) {
+            window.firebaseService.deleteTeam(activeTeam.id).catch(console.warn);
+          }
+          
+          // Force local deletion
+          activeTeam.memberIds = [];
+          store.leaveTeam(activeTeam.id);
+          
+          ToastNotificationManager.show({ title: 'Workspace Deleted 🗑️', message: `"${activeTeam.name}" was permanently deleted.` });
+          AppRouter.switchTab('home');
         }
-        
-        // Force local deletion
-        activeTeam.memberIds = [];
-        store.leaveTeam(activeTeam.id);
-        
-        ToastNotificationManager.show({ title: 'Workspace Deleted 🗑️', message: `"${activeTeam.name}" was permanently deleted.` });
-      }
+      );
     });
 
 
@@ -552,6 +573,36 @@ class TeamManager {
             AppRouter.closeModal();
           });
         });
+      });
+    });
+
+    // Color Picker Handler
+    containerEl.querySelectorAll('.color-picker-input').forEach(picker => {
+      picker.addEventListener('change', async (e) => {
+        const newColor = e.target.value;
+        const memberId = picker.getAttribute('data-member-id');
+        
+        // Update locally
+        const member = store.state.teamMembers.find(m => m.id === memberId);
+        if (member) {
+           member.color = newColor;
+           if (memberId === store.getActiveUser()?.id) {
+             const activeUser = store.getActiveUser();
+             activeUser.color = newColor;
+             store.setActiveUserFromFirebase(activeUser, true);
+           }
+        }
+        
+        // Update in Firebase
+        if (window.firebaseService && window.firebaseService.isInitialized) {
+          try {
+             await window.firebaseService.db.collection('team_members').doc(memberId).set({ color: newColor }, { merge: true });
+             await window.firebaseService.db.collection('users').doc(memberId).set({ color: newColor }, { merge: true });
+             if (window.app && typeof window.app.render === 'function') window.app.render();
+          } catch(err) {
+             console.warn("Failed to update color:", err);
+          }
+        }
       });
     });
 

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - State Management & Multi-Team Local/Cloud Store
+   Noise Desktop - State Management & Multi-Team Local/Cloud Store
    ========================================================================== */
 
 class AppStore {
@@ -9,13 +9,13 @@ class AppStore {
   }
 
   initStore() {
-    const savedTheme = localStorage.getItem('collabcal_theme') || 'dark';
-    const savedActiveUser = localStorage.getItem('collabcal_active_user') || 'user_default';
-    const savedActiveTeam = localStorage.getItem('collabcal_active_team') || null;
-    const savedTeams = localStorage.getItem('collabcal_teams');
-    const savedMembers = localStorage.getItem('collabcal_members');
-    const savedEvents = localStorage.getItem('collabcal_events');
-    const savedProfileStr = localStorage.getItem('collabcal_saved_profile');
+    const savedTheme = localStorage.getItem('noise_theme') || 'dark';
+    const savedActiveUser = localStorage.getItem('noise_active_user') || 'user_default';
+    const savedActiveTeam = localStorage.getItem('noise_active_team') || null;
+    const savedTeams = localStorage.getItem('noise_teams');
+    const savedMembers = localStorage.getItem('noise_members');
+    const savedEvents = localStorage.getItem('noise_events');
+    const savedProfileStr = localStorage.getItem('noise_saved_profile');
 
     let teams = [];
     try { teams = savedTeams ? JSON.parse(savedTeams) : []; } catch(e) {}
@@ -68,7 +68,7 @@ class AppStore {
       currentView: 'month', // 'month' | 'week' | 'day'
       currentDate: new Date(),
       searchQuery: '',
-      notificationsEnabled: localStorage.getItem('collabcal_notifications') !== 'false',
+      notificationsEnabled: localStorage.getItem('noise_notifications') !== 'false',
       firebaseUser: null,
       cloudSyncStatus: 'unconfigured', // 'unconfigured' | 'connecting' | 'connected' | 'offline' | 'error'
       lastSyncedAt: null
@@ -115,7 +115,12 @@ class AppStore {
   }
 
   notify() {
-    this.listeners.forEach(listener => listener(this.state));
+    if (this._notifyPending) return;
+    this._notifyPending = true;
+    requestAnimationFrame(() => {
+      this._notifyPending = false;
+      this.listeners.forEach(listener => listener(this.state));
+    });
   }
 
   // --- Team Workspaces Operations ---
@@ -131,7 +136,7 @@ class AppStore {
     const teamExists = this.state.teams.some(t => t.id === teamId);
     if (teamExists) {
       this.state.activeTeamId = teamId;
-      localStorage.setItem('collabcal_active_team', teamId);
+      localStorage.setItem('noise_active_team', teamId);
       
       // Update visibleMemberIds for active team
       const activeMembers = this.getActiveTeamMembers();
@@ -182,6 +187,27 @@ class AppStore {
     if (existingTeam) {
       if (!existingTeam.memberIds.includes(this.state.activeUserId)) {
         existingTeam.memberIds.push(this.state.activeUserId);
+        
+        // Ensure Unique Color Logic
+        const activeUser = this.getActiveUser();
+        if (activeUser) {
+          const existingMembers = this.state.teamMembers.filter(m => existingTeam.memberIds.includes(m.id) && m.id !== activeUser.id);
+          const usedColors = existingMembers.map(m => (m.color || '').toLowerCase());
+          
+          if (activeUser.color && usedColors.includes(activeUser.color.toLowerCase())) {
+            const allColors = ['#8b5cf6', '#10b981', '#06b6d4', '#f43f5e', '#f59e0b', '#3b82f6'];
+            const availableColors = allColors.filter(c => !usedColors.includes(c));
+            const newColor = availableColors.length > 0 ? availableColors[Math.floor(Math.random() * availableColors.length)] : allColors[Math.floor(Math.random() * allColors.length)];
+            
+            activeUser.color = newColor;
+            this.setActiveUserFromFirebase(activeUser, true);
+            if (window.firebaseService && window.firebaseService.isInitialized) {
+               window.firebaseService.db.collection('team_members').doc(activeUser.id).set({ color: newColor }, { merge: true });
+               window.firebaseService.db.collection('users').doc(activeUser.id).set({ color: newColor }, { merge: true });
+            }
+          }
+        }
+
         this.saveTeams();
       }
       this.switchTeam(existingTeam.id);
@@ -200,6 +226,27 @@ class AppStore {
           }
           if (!cloudTeam.memberIds.includes(this.state.activeUserId)) {
             cloudTeam.memberIds.push(this.state.activeUserId);
+            
+            // Ensure Unique Color Logic
+            const activeUser = this.getActiveUser();
+            if (activeUser) {
+              const existingMembers = this.state.teamMembers.filter(m => cloudTeam.memberIds.includes(m.id) && m.id !== activeUser.id);
+              const usedColors = existingMembers.map(m => (m.color || '').toLowerCase());
+              
+              if (activeUser.color && usedColors.includes(activeUser.color.toLowerCase())) {
+                const allColors = ['#8b5cf6', '#10b981', '#06b6d4', '#f43f5e', '#f59e0b', '#3b82f6'];
+                const availableColors = allColors.filter(c => !usedColors.includes(c));
+                const newColor = availableColors.length > 0 ? availableColors[Math.floor(Math.random() * availableColors.length)] : allColors[Math.floor(Math.random() * allColors.length)];
+                
+                activeUser.color = newColor;
+                this.setActiveUserFromFirebase(activeUser, true);
+                if (window.firebaseService && window.firebaseService.isInitialized) {
+                   window.firebaseService.db.collection('team_members').doc(activeUser.id).set({ color: newColor }, { merge: true });
+                   window.firebaseService.db.collection('users').doc(activeUser.id).set({ color: newColor }, { merge: true });
+                }
+              }
+            }
+
             window.firebaseService.updateTeam(cloudTeam.id, cloudTeam);
           }
           this.saveTeams();
@@ -268,8 +315,8 @@ class AppStore {
   }
 
   saveTeams() {
-    localStorage.setItem('collabcal_teams', JSON.stringify(this.state.teams));
-    localStorage.setItem('collabcal_active_team', this.state.activeTeamId);
+    localStorage.setItem('noise_teams', JSON.stringify(this.state.teams));
+    localStorage.setItem('noise_active_team', this.state.activeTeamId);
   }
 
   // --- Active Team Scoped Selectors ---
@@ -280,8 +327,28 @@ class AppStore {
     }
     const allowedIds = new Set(activeTeam.memberIds);
     allowedIds.add(this.state.activeUserId);
-    
     return this.state.teamMembers.filter(m => allowedIds.has(m.id));
+  }
+
+  isUserOnline(member) {
+    if (!member || !member.lastActiveAt) return false;
+    let timeMs = 0;
+    
+    // Handle Firestore Timestamp object directly
+    if (member.lastActiveAt.toMillis && typeof member.lastActiveAt.toMillis === 'function') {
+      timeMs = member.lastActiveAt.toMillis();
+    } else if (member.lastActiveAt.seconds) { // Raw object representation
+      timeMs = member.lastActiveAt.seconds * 1000;
+    } else if (member.lastActiveAt instanceof Date) {
+      timeMs = member.lastActiveAt.getTime();
+    } else if (typeof member.lastActiveAt === 'string') {
+      timeMs = new Date(member.lastActiveAt).getTime();
+    } else if (typeof member.lastActiveAt === 'number') {
+      timeMs = member.lastActiveAt;
+    }
+    
+    // Consider online if active in the last 4 minutes (heartbeat is every 2m)
+    return (Date.now() - timeMs) < (4 * 60 * 1000);
   }
 
   getActiveTeamEvents() {
@@ -290,8 +357,11 @@ class AppStore {
     
     let events = this.state.events.filter(e => validMemberIds.has(e.memberId));
     
-    if (!activeTeam) return events;
-    return events.filter(e => !e.teamId || e.teamId === activeTeam.id);
+    if (activeTeam) {
+      events = events.filter(e => !e.teamId || e.teamId === activeTeam.id);
+    }
+    
+    return events.sort((a, b) => new Date(a.start) - new Date(b.start));
   }
 
   // Ingest external real-time teams from Firestore (Single Source of Truth)
@@ -367,18 +437,18 @@ class AppStore {
     }
 
     // Persist full profile and email for seamless auto-resume
-    localStorage.setItem('collabcal_stay_logged_in', rememberMe ? 'true' : 'false');
+    localStorage.setItem('noise_stay_logged_in', rememberMe ? 'true' : 'false');
     if (rememberMe) {
-      localStorage.setItem('collabcal_saved_profile', JSON.stringify(profile));
+      localStorage.setItem('noise_saved_profile', JSON.stringify(profile));
       if (profile.email) {
-        localStorage.setItem('collabcal_saved_email', profile.email);
+        localStorage.setItem('noise_saved_email', profile.email);
       }
     } else {
-      localStorage.removeItem('collabcal_saved_profile');
+      localStorage.removeItem('noise_saved_profile');
     }
 
-    localStorage.setItem('collabcal_active_user', this.state.activeUserId);
-    localStorage.setItem('collabcal_members', JSON.stringify(this.state.teamMembers));
+    localStorage.setItem('noise_active_user', this.state.activeUserId);
+    localStorage.setItem('noise_members', JSON.stringify(this.state.teamMembers));
 
     // Wait for ingestCloudTeams to handle workspace generation.
     this.notify();
@@ -401,29 +471,31 @@ class AppStore {
   }
 
   setStayLoggedIn(enabled) {
-    localStorage.setItem('collabcal_stay_logged_in', enabled ? 'true' : 'false');
+    localStorage.setItem('noise_stay_logged_in', enabled ? 'true' : 'false');
     if (!enabled) {
-      localStorage.removeItem('collabcal_saved_profile');
+      localStorage.removeItem('noise_saved_profile');
     } else {
       const user = this.getActiveUser();
       if (user && user.id !== 'user_default') {
-        localStorage.setItem('collabcal_saved_profile', JSON.stringify(user));
+        localStorage.setItem('noise_saved_profile', JSON.stringify(user));
       }
     }
     this.notify();
   }
 
   isStayLoggedIn() {
-    return localStorage.getItem('collabcal_stay_logged_in') !== 'false';
+    return localStorage.getItem('noise_stay_logged_in') !== 'false';
   }
 
   clearActiveUser() {
-    localStorage.removeItem('collabcal_saved_profile');
+    localStorage.removeItem('noise_saved_profile');
     this.state.firebaseUser = null;
     this.state.activeUserId = 'user_default';
-    localStorage.setItem('collabcal_active_user', 'user_default');
+    localStorage.setItem('noise_active_user', 'user_default');
     this.notify();
   }
+
+
 
   setCloudStatus(status) {
     this.state.cloudSyncStatus = status;
@@ -448,7 +520,7 @@ class AppStore {
     this.state.teamMembers = merged;
     merged.forEach(m => this.state.visibleMemberIds.add(m.id));
     this.state.lastSyncedAt = new Date();
-    localStorage.setItem('collabcal_members', JSON.stringify(merged));
+    localStorage.setItem('noise_members', JSON.stringify(merged));
     this.notify();
   }
 
@@ -456,7 +528,7 @@ class AppStore {
   setTheme(theme) {
     this.state.theme = theme;
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('collabcal_theme', theme);
+    localStorage.setItem('noise_theme', theme);
     this.notify();
   }
 
@@ -470,13 +542,13 @@ class AppStore {
     const userExists = this.state.teamMembers.some(m => m.id === userId);
     if (userExists) {
       this.state.activeUserId = userId;
-      localStorage.setItem('collabcal_active_user', userId);
+      localStorage.setItem('noise_active_user', userId);
       this.notify();
     }
   }
 
   getActiveUser() {
-    const saved = localStorage.getItem('collabcal_saved_profile');
+    const saved = localStorage.getItem('noise_saved_profile');
     let localProfile = null;
     if (saved) {
       try { localProfile = JSON.parse(saved); } catch (e) {}
@@ -499,7 +571,7 @@ class AppStore {
   }
 
   isUserLoggedIn() {
-    const saved = localStorage.getItem('collabcal_saved_profile');
+    const saved = localStorage.getItem('noise_saved_profile');
     if (saved) {
       try {
         const p = JSON.parse(saved);
@@ -544,7 +616,7 @@ class AppStore {
       }
     }
 
-    localStorage.setItem('collabcal_members', JSON.stringify(this.state.teamMembers));
+    localStorage.setItem('noise_members', JSON.stringify(this.state.teamMembers));
     this.notify();
 
     if (window.firebaseService && window.firebaseService.isInitialized) {
@@ -565,7 +637,7 @@ class AppStore {
     const index = this.state.teamMembers.findIndex(m => m.id === memberId);
     if (index !== -1) {
       this.state.teamMembers[index] = { ...this.state.teamMembers[index], ...updatedData };
-      localStorage.setItem('collabcal_members', JSON.stringify(this.state.teamMembers));
+      localStorage.setItem('noise_members', JSON.stringify(this.state.teamMembers));
       this.notify();
 
       if (window.firebaseService && window.firebaseService.isInitialized) {
@@ -610,8 +682,7 @@ class AppStore {
     const index = this.state.events.findIndex(e => e.id === eventId);
     if (index !== -1) {
       if (this.state.events[index].memberId !== this.state.activeUserId) {
-        console.warn("Cannot update an event you don't own.");
-        return;
+        throw new Error("Cannot update an event you don't own.");
       }
       this.state.events[index] = { ...this.state.events[index], ...updatedData };
       this.saveEvents();
@@ -628,16 +699,16 @@ class AppStore {
 
 
   factoryReset() {
-    localStorage.removeItem('collabcal_theme');
-    localStorage.removeItem('collabcal_active_user');
-    localStorage.removeItem('collabcal_active_team');
-    localStorage.removeItem('collabcal_teams');
-    localStorage.removeItem('collabcal_members');
-    localStorage.removeItem('collabcal_events');
-    localStorage.removeItem('collabcal_saved_profile');
-    localStorage.removeItem('collabcal_stay_logged_in');
-    localStorage.removeItem('collabcal_saved_email');
-    localStorage.removeItem('collabcal_saved_password');
+    localStorage.removeItem('noise_theme');
+    localStorage.removeItem('noise_active_user');
+    localStorage.removeItem('noise_active_team');
+    localStorage.removeItem('noise_teams');
+    localStorage.removeItem('noise_members');
+    localStorage.removeItem('noise_events');
+    localStorage.removeItem('noise_saved_profile');
+    localStorage.removeItem('noise_stay_logged_in');
+    localStorage.removeItem('noise_saved_email');
+    localStorage.removeItem('noise_saved_password');
     
     // Re-initialize state to default
     this.initStore();
@@ -645,7 +716,7 @@ class AppStore {
   }
 
   saveEvents() {
-    localStorage.setItem('collabcal_events', JSON.stringify(this.state.events));
+    localStorage.setItem('noise_events', JSON.stringify(this.state.events));
   }
 
   // --- Calendar Navigation ---
@@ -684,10 +755,10 @@ class AppStore {
     this.state.teamMembers = typeof INITIAL_TEAM_MEMBERS !== 'undefined' ? INITIAL_TEAM_MEMBERS : [];
     this.state.events = typeof INITIAL_EVENTS !== 'undefined' ? INITIAL_EVENTS : [];
     this.state.visibleMemberIds = new Set(this.state.teamMembers.map(m => m.id));
-    localStorage.removeItem('collabcal_events');
-    localStorage.removeItem('collabcal_members');
-    localStorage.removeItem('collabcal_teams');
-    localStorage.removeItem('collabcal_active_team');
+    localStorage.removeItem('noise_events');
+    localStorage.removeItem('noise_members');
+    localStorage.removeItem('noise_teams');
+    localStorage.removeItem('noise_active_team');
     this.notify();
   }
 }

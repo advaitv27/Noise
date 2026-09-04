@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Modern Liquid Glass Calendar Grid System
+   Noise Desktop - Modern Liquid Glass Calendar Grid System
    ========================================================================== */
 
 .calendar-wrapper {
@@ -391,3 +391,58 @@
   color: var(--text-primary);
   background: var(--bg-surface-hover);
 }
+
+/* ==========================================================================
+   Mobile Responsive Adjustments
+   ========================================================================== */
+@media (max-width: 768px) {
+  .calendar-controls {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+  
+  .calendar-nav-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .calendar-current-title {
+    font-size: 16px;
+    min-width: auto;
+  }
+
+  .weekday-cell {
+    padding: 6px 0;
+    font-size: 9px;
+  }
+
+  .day-cell {
+    padding: 4px;
+    gap: 2px;
+  }
+
+  .day-number {
+    font-size: 11px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .event-pill {
+    height: 18px;
+    padding: 0 4px;
+    font-size: 9px;
+    gap: 4px;
+  }
+
+  .event-pill-avatar {
+    width: 12px;
+    height: 12px;
+    font-size: 6px;
+  }
+
+  .event-pill-time {
+    display: none; /* Hide time to save space on mobile */
+  }
+}
+

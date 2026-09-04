@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Application Router & Main Desktop Orchestrator
+   Noise Desktop - Application Router & Main Desktop Orchestrator
    ========================================================================== */
 
 class AppRouter {
@@ -11,7 +11,14 @@ class AppRouter {
     this.setupTabNavigation();
     this.setupModal();
     this.setupSearch();
+    this.setupSidebarToggle();
+    this.setupThemeToggle();
+    this.setupAIAssistant();
     this.startNotificationTicker();
+    
+    if (localStorage.getItem('noise_low_perf_mode') === 'true') {
+      document.body.classList.add('low-performance-mode');
+    }
 
     // Force the UI to reflect the active tab on startup
     this.switchTab(this.activeTab);
@@ -77,13 +84,14 @@ class AppRouter {
         const renderModal = () => {
           modalBody.innerHTML = `
             <div style="text-align: center; padding: 20px 0;">
-              <div style="position: relative; width: 80px; height: 80px; margin: 0 auto 16px;">
+              <div class="avatar-upload-wrapper">
                 ${activeUser.avatarUrl ? 
-                  `<img src="${activeUser.avatarUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 16px rgba(0,0,0,0.3);" />` : 
-                  `<div style="width: 100%; height: 100%; border-radius: 50%; background: ${activeUser.color || '#52525b'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">${activeUser.avatar}</div>`
+                  `<img src="${activeUser.avatarUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />` : 
+                  `<div style="width: 100%; height: 100%; border-radius: 50%; background: ${activeUser.color || '#52525b'}; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800;">${activeUser.avatar}</div>`
                 }
-                <label for="avatar-upload" style="position: absolute; bottom: -4px; right: -4px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 50%; padding: 4px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="Change Profile Picture">
-                  📷
+                <label for="avatar-upload" class="avatar-upload-overlay" title="Change Profile Picture">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                  <span>Edit</span>
                 </label>
                 <input type="file" id="avatar-upload" accept="image/png, image/jpeg, image/jpg" style="display: none;" />
               </div>
@@ -165,46 +173,172 @@ class AppRouter {
             const file = e.target.files[0];
             if (!file) return;
 
-            ToastNotificationManager.show({ title: 'Uploading...', message: 'Uploading profile picture.' });
-            try {
-              const url = await window.firebaseService.uploadProfilePicture(file, activeUser.id);
-              const updatedUser = { ...activeUser, avatarUrl: url };
-              
-              if (window.firebaseService && window.firebaseService.isInitialized) {
-                await window.firebaseService.db.collection('users').doc(activeUser.id).set({ avatarUrl: url }, { merge: true });
-                await window.firebaseService.db.collection('team_members').doc(activeUser.id).set({ avatarUrl: url }, { merge: true });
-              }
-              store.setActiveUserFromFirebase(updatedUser, true);
-              activeUser.avatarUrl = url; // local update for re-render
-              renderModal();
-              ToastNotificationManager.show({ title: 'Success', message: 'Profile picture updated.' });
-            } catch (err) {
-              ToastNotificationManager.show({ title: 'Upload Failed', message: 'Check your Firebase Storage configuration.' });
-            }
+            // Build temporary crop modal over everything
+            const cropModal = document.createElement('div');
+            cropModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;backdrop-filter:blur(8px);';
+            cropModal.innerHTML = `
+              <h3 style="margin-bottom:20px;font-size:20px;">Adjust Profile Picture</h3>
+              <div class="crop-modal-body">
+                <div class="crop-container" id="crop-container">
+                  <canvas id="crop-canvas" class="crop-canvas"></canvas>
+                  <div class="crop-overlay"></div>
+                </div>
+                <div class="zoom-slider-container">
+                  <span style="font-size:12px;">-</span>
+                  <input type="range" class="zoom-slider" id="crop-zoom" min="1" max="3" step="0.05" value="1" />
+                  <span style="font-size:12px;">+</span>
+                </div>
+                <div style="display:flex;gap:12px;margin-top:20px;">
+                  <button class="btn btn-secondary" id="btn-crop-cancel">Cancel</button>
+                  <button class="btn btn-primary" id="btn-crop-save">Save Picture</button>
+                </div>
+              </div>
+            `;
+            document.body.appendChild(cropModal);
+
+            const canvas = cropModal.querySelector('#crop-canvas');
+            const ctx = canvas.getContext('2d');
+            const zoomSlider = cropModal.querySelector('#crop-zoom');
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const img = new Image();
+              img.onload = () => {
+                let scale = 1;
+                let panX = 0;
+                let panY = 0;
+                const containerSize = 256;
+                
+                const minScale = Math.max(containerSize / img.width, containerSize / img.height);
+                scale = minScale;
+                zoomSlider.min = minScale;
+                zoomSlider.max = minScale * 3;
+                zoomSlider.value = minScale;
+                
+                panX = (containerSize - img.width * scale) / 2;
+                panY = (containerSize - img.height * scale) / 2;
+
+                const draw = () => {
+                  canvas.width = containerSize;
+                  canvas.height = containerSize;
+                  ctx.clearRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(img, panX, panY, img.width * scale, img.height * scale);
+                };
+                
+                draw();
+
+                let isDragging = false;
+                let startX, startY;
+                const container = cropModal.querySelector('#crop-container');
+                
+                container.addEventListener('mousedown', (ev) => {
+                  isDragging = true;
+                  startX = ev.clientX - panX;
+                  startY = ev.clientY - panY;
+                });
+                
+                window.addEventListener('mousemove', (ev) => {
+                  if (!isDragging) return;
+                  panX = ev.clientX - startX;
+                  panY = ev.clientY - startY;
+                  
+                  const minPanX = containerSize - img.width * scale;
+                  const minPanY = containerSize - img.height * scale;
+                  panX = Math.min(Math.max(panX, minPanX), 0);
+                  panY = Math.min(Math.max(panY, minPanY), 0);
+                  
+                  draw();
+                });
+                
+                window.addEventListener('mouseup', () => { isDragging = false; });
+                
+                zoomSlider.addEventListener('input', (ev) => {
+                  const newScale = parseFloat(ev.target.value);
+                  const centerX = containerSize / 2;
+                  const centerY = containerSize / 2;
+                  
+                  panX = centerX - (centerX - panX) * (newScale / scale);
+                  panY = centerY - (centerY - panY) * (newScale / scale);
+                  scale = newScale;
+                  
+                  const minPanX = containerSize - img.width * scale;
+                  const minPanY = containerSize - img.height * scale;
+                  panX = Math.min(Math.max(panX, minPanX), 0);
+                  panY = Math.min(Math.max(panY, minPanY), 0);
+                  
+                  draw();
+                });
+
+                cropModal.querySelector('#btn-crop-cancel').addEventListener('click', () => {
+                  cropModal.remove();
+                  e.target.value = '';
+                });
+
+                cropModal.querySelector('#btn-crop-save').addEventListener('click', async () => {
+                  const btnSave = cropModal.querySelector('#btn-crop-save');
+                  btnSave.innerHTML = 'Saving...';
+                  btnSave.disabled = true;
+                  
+                  const outputCanvas = document.createElement('canvas');
+                  outputCanvas.width = 200;
+                  outputCanvas.height = 200;
+                  const outCtx = outputCanvas.getContext('2d');
+                  
+                  const sourceX = 12;
+                  const sourceY = 12;
+                  const sourceSize = 232;
+                  
+                  outCtx.drawImage(canvas, sourceX, sourceY, sourceSize, sourceSize, 0, 0, 200, 200);
+                  const url = outputCanvas.toDataURL('image/jpeg', 0.85);
+                  
+                  try {
+                    const updatedUser = { ...activeUser, avatarUrl: url };
+                    if (window.firebaseService && window.firebaseService.isInitialized) {
+                      await window.firebaseService.db.collection('users').doc(activeUser.id).set({ avatarUrl: url }, { merge: true });
+                      await window.firebaseService.db.collection('team_members').doc(activeUser.id).set({ avatarUrl: url }, { merge: true });
+                    }
+                    store.setActiveUserFromFirebase(updatedUser, true);
+                    activeUser.avatarUrl = url;
+                    renderModal();
+                    ToastNotificationManager.show({ title: 'Success', message: 'Profile picture updated.' });
+                  } catch (err) {
+                    console.error(err);
+                    ToastNotificationManager.show({ title: 'Upload Failed', message: 'Failed to update image.' });
+                  }
+                  
+                  cropModal.remove();
+                });
+              };
+              img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
           });
 
           modalBody.querySelector('#btn-delete-account').addEventListener('click', async () => {
-            if (confirm('🚨 CRITICAL WARNING 🚨\\n\\nAre you absolutely sure you want to delete your account? All your personal tasks and workspaces will be permanently destroyed. This cannot be undone.')) {
-              const btn = modalBody.querySelector('#btn-delete-account');
-              btn.innerHTML = 'Deleting...';
-              btn.disabled = true;
+            this.confirm(
+              '🚨 CRITICAL WARNING 🚨', 
+              'Are you absolutely sure you want to delete your account? All your personal tasks and workspaces will be permanently destroyed. This cannot be undone.', 
+              async () => {
+                const btn = modalBody.querySelector('#btn-delete-account');
+                btn.innerHTML = 'Deleting...';
+                btn.disabled = true;
 
-              try {
-                if (window.firebaseService) {
-                  await window.firebaseService.deleteAccountData();
-                } else {
-                  store.factoryReset();
+                try {
+                  if (window.firebaseService) {
+                    await window.firebaseService.deleteAccountData();
+                  } else {
+                    store.factoryReset();
+                  }
+                  this.closeModal();
+                  ToastNotificationManager.show({ title: 'Account Deleted', message: 'Your account data has been wiped.' });
+                  this.switchTab('login');
+                } catch(e) {
+                  btn.innerHTML = 'Delete Account Data';
+                  btn.disabled = false;
+                  ToastNotificationManager.show({ title: 'Error', message: 'Failed to delete account.' });
                 }
-                this.closeModal();
-                ToastNotificationManager.show({ title: 'Account Deleted', message: 'Your account data has been wiped.' });
-                this.switchTab('login');
-              } catch (err) {
-                console.error(err);
-                btn.innerHTML = 'Error Deleting Account';
-                btn.disabled = false;
-                ToastNotificationManager.show({ title: 'Error', message: 'Could not delete account. Try signing in again.' });
               }
-            }
+            );
           });
         };
         renderModal();
@@ -257,14 +391,20 @@ class AppRouter {
     searchBox.appendChild(dropdown);
 
     searchInput.addEventListener('input', (e) => {
+      store.setSearchQuery(e.target.value);
       const q = e.target.value.toLowerCase().trim();
       if (!q) {
         dropdown.style.display = 'none';
         return;
       }
       
-      const events = store.getActiveTeamEvents().filter(ev => ev.title.toLowerCase().includes(q) || (ev.category && ev.category.toLowerCase().includes(q)));
-      const members = store.getActiveTeamMembers().filter(m => m.name.toLowerCase().includes(q) || (m.role && m.role.toLowerCase().includes(q)));
+      const state = store.getState();
+      const allEvents = state.events || [];
+      const allMembers = state.teamMembers || [];
+      const teams = state.teams || [];
+
+      const events = allEvents.filter(ev => (ev.title && ev.title.toLowerCase().includes(q)) || (ev.category && ev.category.toLowerCase().includes(q)));
+      const members = allMembers.filter(m => (m.name && m.name.toLowerCase().includes(q)) || (m.role && m.role.toLowerCase().includes(q)));
 
       dropdown.innerHTML = '';
       if (events.length === 0 && members.length === 0) {
@@ -273,10 +413,20 @@ class AppRouter {
         if (events.length > 0) {
           dropdown.innerHTML += '<div style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: var(--text-muted); background: var(--bg-surface); text-transform: uppercase;">Events</div>';
           events.slice(0,5).forEach(ev => {
+            const team = teams.find(t => t.id === ev.teamId);
+            const teamName = team ? team.name : 'Unknown Workspace';
             const el = document.createElement('div');
+            el.className = 'search-result-item';
             el.style.cssText = 'padding: 10px 12px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; flex-direction: column; gap: 4px;';
-            el.innerHTML = '<div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">' + ev.title + '</div><div style="font-size: 11px; color: var(--text-secondary);">' + ev.start.replace('T', ' ') + '</div>';
-            el.onclick = () => { AppRouter.openEventModal(ev.id); dropdown.style.display = 'none'; searchInput.value = ''; };
+            el.innerHTML = '<div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">' + ev.title + '</div><div style="font-size: 11px; color: var(--text-secondary);">' + ev.start.replace('T', ' ') + ' • ' + teamName + '</div>';
+            el.onclick = () => { 
+              if (ev.teamId && state.activeTeamId !== ev.teamId) {
+                store.switchTeam(ev.teamId);
+              }
+              AppRouter.openEventModal(ev.id); 
+              dropdown.style.display = 'none'; 
+              searchInput.value = ''; 
+            };
             dropdown.appendChild(el);
           });
         }
@@ -284,8 +434,17 @@ class AppRouter {
           dropdown.innerHTML += '<div style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: var(--text-muted); background: var(--bg-surface); text-transform: uppercase;">Members</div>';
           members.slice(0,5).forEach(m => {
             const el = document.createElement('div');
-            el.style.cssText = 'padding: 10px 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;';
+            el.className = 'search-result-item';
+            el.style.cssText = 'padding: 10px 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; cursor: pointer;';
             el.innerHTML = '<div style="width: 24px; height: 24px; border-radius: 50%; background: ' + (m.color || '#555') + '; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">' + (m.avatarUrl ? '<img src="'+m.avatarUrl+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : (m.avatar || 'U')) + '</div><div style="display: flex; flex-direction: column;"><span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">' + m.name + '</span><span style="font-size: 11px; color: var(--text-secondary);">' + (m.role || 'Member') + '</span></div>';
+            el.onclick = () => {
+              const activeTeam = store.getActiveTeam();
+              if (!activeTeam || !(activeTeam.memberIds || []).includes(m.id)) {
+                const newTeam = teams.find(t => (t.memberIds || []).includes(m.id));
+                if (newTeam) store.switchTeam(newTeam.id);
+              }
+              dropdown.style.display = 'none'; searchInput.value = '';
+            };
             dropdown.appendChild(el);
           });
         }
@@ -295,6 +454,18 @@ class AppRouter {
 
     document.addEventListener('click', (e) => {
       if (!searchBox.contains(e.target)) dropdown.style.display = 'none';
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (dropdown.style.display === 'flex') {
+          const firstResult = dropdown.querySelector('.search-result-item');
+          if (firstResult) {
+            firstResult.click();
+          }
+        }
+      }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -432,6 +603,9 @@ class AppRouter {
           break;
         case 'calendar':
           this.calendarView.render();
+          break;
+        case 'chat':
+          ChatManager.render(document.querySelector('#page-chat'));
           break;
         case 'account':
           TeamManager.renderAccountTabPage(document.querySelector('#page-account'));
@@ -637,7 +811,7 @@ class AppRouter {
                 🔥
               </div>
               <div>
-                <h3 class="panel-title" style="margin: 0;">CollabCal Cloud Realtime Synchronization</h3>
+                <h3 class="panel-title" style="margin: 0;">Noise Cloud Realtime Synchronization</h3>
                 <span style="font-size: 12px; color: var(--text-secondary);">Default cloud infrastructure is active for all team workspaces</span>
               </div>
             </div>
@@ -749,6 +923,42 @@ class AppRouter {
                 <span class="toggle-slider"></span>
               </label>
             </div>
+            
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 12px;">
+              <div style="padding-right: 14px;">
+                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">Launch App on Startup</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                  Automatically start Noise when you log into your computer.
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-toggle-launch-startup" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+
+
+        <!-- ⚡ PERFORMANCE PANEL -->
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">⚡ Performance & Graphics</h3>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: 12px;">
+              <div style="padding-right: 14px;">
+                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">Low Performance Mode</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                  Disables heavy graphical effects (like frosted glass blurs) to improve speed on older PCs. This setting is machine-specific.
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-toggle-low-perf" ${localStorage.getItem('noise_low_perf_mode') === 'true' ? 'checked' : ''} />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -763,7 +973,7 @@ class AppRouter {
             </p>
             <div style="display: flex; gap: 12px;">
               <button class="btn btn-secondary" id="btn-export-calendar">📤 Export Calendar (.json)</button>
-              <button class="btn btn-danger" id="btn-clear-cache">🗑️ Clear Local Cache</button>
+              <button class="btn btn-danger" id="settings-clear-data">🗑️ Clear Local Cache</button>
             </div>
           </div>
         </div>
@@ -806,6 +1016,45 @@ class AppRouter {
       });
     });
 
+    // Low Performance Mode Setting Toggle Handler
+    containerEl.querySelector('#setting-toggle-low-perf')?.addEventListener('change', (e) => {
+      const isLowPerf = e.target.checked;
+      localStorage.setItem('noise_low_perf_mode', isLowPerf);
+      if (isLowPerf) {
+        document.body.classList.add('low-performance-mode');
+      } else {
+        document.body.classList.remove('low-performance-mode');
+      }
+      ToastNotificationManager.show({
+        title: isLowPerf ? 'Low Performance Mode: On ⚡' : 'Low Performance Mode: Off 💎',
+        message: isLowPerf 
+          ? 'Heavy graphical effects are disabled.' 
+          : 'Full visual fidelity restored.'
+      });
+    });
+
+    // Launch on Startup Setting Toggle Handler
+    const startupToggle = containerEl.querySelector('#setting-toggle-launch-startup');
+    if (startupToggle && window.electronAPI && window.electronAPI.getLoginItemSettings) {
+      window.electronAPI.getLoginItemSettings().then(isOpenAtLogin => {
+        startupToggle.checked = isOpenAtLogin;
+      });
+      startupToggle.addEventListener('change', (e) => {
+        const isEnabled = e.target.checked;
+        window.electronAPI.setLoginItemSettings(isEnabled);
+        ToastNotificationManager.show({
+          title: isEnabled ? 'Launch on Startup: Enabled 🚀' : 'Launch on Startup: Disabled 🛑',
+          message: isEnabled 
+            ? 'Noise will automatically start when you log in.' 
+            : 'Noise will no longer start automatically.'
+        });
+      });
+    } else if (startupToggle) {
+      startupToggle.disabled = true; // Disable if not in electron
+    }
+
+
+
     // Force Cloud Sync Handler
     containerEl.querySelector('#btn-force-sync')?.addEventListener('click', async () => {
       ToastNotificationManager.show({ title: 'Syncing with Cloud...', message: 'Pulling latest team events from Firestore' });
@@ -836,7 +1085,7 @@ class AppRouter {
       const content = JSON.stringify(state.events, null, 2);
       if (window.electronAPI) {
         const res = await window.electronAPI.exportFile({
-          defaultName: 'collabcal-team-calendar.json',
+          defaultName: 'noise-team-calendar.json',
           content
         });
         if (res.success) {
@@ -846,11 +1095,11 @@ class AppRouter {
     });
 
     // Clear Cache
-    containerEl.querySelector('#btn-clear-cache')?.addEventListener('click', () => {
-      if (confirm('Clear local storage and reload fresh workspace?')) {
+    containerEl.querySelector('#settings-clear-data').addEventListener('click', () => {
+      this.confirm('Clear Local Data', 'Clear local storage and reload fresh workspace?', () => {
         localStorage.clear();
         location.reload();
-      }
+      });
     });
   }
 
@@ -862,7 +1111,7 @@ class AppRouter {
     const fbUser = state.firebaseUser;
     const isLoggedIn = store.isUserLoggedIn();
     const activeTeam = store.getActiveTeam();
-    const savedEmail = localStorage.getItem('collabcal_saved_email') || '';
+    const savedEmail = localStorage.getItem('noise_saved_email') || '';
 
     let authMode = 'signin'; // 'signin' | 'signup'
 
@@ -1228,10 +1477,14 @@ class AppRouter {
 
       body.querySelector('#evt-btn-cancel')?.addEventListener('click', () => this.closeModal());
       body.querySelector('#evt-btn-delete')?.addEventListener('click', () => {
-        if (confirm('Delete this task event?')) {
+        this.confirm('Delete Task', 'Delete this task event?', () => {
+          if (window.firebaseService && window.firebaseService.isInitialized) {
+            window.firebaseService.deleteEvent(eventId).catch(console.warn);
+          }
           store.deleteEvent(eventId);
           this.closeModal();
-        }
+          ToastNotificationManager.show({ title: 'Task Deleted', message: 'The event has been removed.' });
+        });
       });
 
       body.querySelector('#modal-event-form')?.addEventListener('submit', (e) => {
@@ -1284,11 +1537,179 @@ class AppRouter {
     this.modalOverlay?.classList.remove('active');
   }
 
-  static setupSearch() {
-    const searchInput = document.querySelector('#global-search-input');
-    searchInput?.addEventListener('input', (e) => {
-      store.setSearchQuery(e.target.value);
+  static confirm(title, message, onConfirm) {
+    this.openModal(title, (body) => {
+      body.innerHTML = `
+        <div style="margin-bottom: 20px; font-size: 14px; color: var(--text-secondary); white-space: pre-wrap;">${message}</div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button class="btn btn-ghost" id="confirm-cancel">Cancel</button>
+          <button class="btn btn-primary" id="confirm-ok" style="background: var(--status-error); color: white;">Confirm</button>
+        </div>
+      `;
+      body.querySelector('#confirm-cancel').addEventListener('click', () => this.closeModal());
+      body.querySelector('#confirm-ok').addEventListener('click', () => {
+        this.closeModal();
+        onConfirm();
+      });
     });
+  }
+
+  static setupThemeToggle() {
+    const themeBtn = document.querySelector('#titlebar-theme-toggle');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        if (window.store && typeof window.store.toggleTheme === 'function') {
+          window.store.toggleTheme();
+          if (window.app && typeof window.app.render === 'function') window.app.render();
+        }
+      });
+    }
+  }
+
+  static setupSidebarToggle() {
+    const toggleBtn = document.querySelector('#sidebar-toggle-btn');
+    const sidebar = document.querySelector('.app-sidebar');
+    if (toggleBtn && sidebar) {
+      toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+      });
+    }
+  }
+
+  static setupAIAssistant() {
+    const aiBtn = document.querySelector('#ai-topbar-btn');
+    const aiWidget = document.querySelector('#ai-chat-widget');
+    const closeBtn = document.querySelector('#ai-widget-toggle');
+    const sendBtn = document.querySelector('#ai-chat-send');
+    const input = document.querySelector('#ai-chat-input');
+    const historyContainer = document.querySelector('#ai-chat-history');
+
+    if (!aiBtn || !aiWidget) return;
+
+    const toggleWidget = () => {
+      aiWidget.classList.toggle('collapsed');
+      if (!aiWidget.classList.contains('collapsed')) {
+        input.focus();
+      }
+    };
+
+    aiBtn.addEventListener('click', toggleWidget);
+    closeBtn.addEventListener('click', toggleWidget);
+
+    const appendMessage = (text, role) => {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `ai-message ${role}`;
+      // Basic markdown parsing for bold and line breaks
+      msgDiv.innerHTML = text
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+      historyContainer.appendChild(msgDiv);
+      historyContainer.scrollTop = historyContainer.scrollHeight;
+    };
+
+    const handleSend = async () => {
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      appendMessage(text, 'user');
+      
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'ai-message model';
+      loadingDiv.textContent = 'Thinking...';
+      historyContainer.appendChild(loadingDiv);
+      historyContainer.scrollTop = historyContainer.scrollHeight;
+
+      try {
+        if (!window.aiService) throw new Error('AI Service not loaded.');
+        const response = await window.aiService.sendMessage(text);
+        loadingDiv.remove();
+        appendMessage(response, 'model');
+      } catch (err) {
+        loadingDiv.remove();
+        appendMessage(err.message, 'error');
+      }
+    };
+
+    sendBtn.addEventListener('click', handleSend);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSend();
+      }
+    });
+  }
+  static openMemberProfile(memberId) {
+    const member = store.state.teamMembers.find(m => m.id === memberId);
+    if (!member) return;
+
+    const isOnline = store.isUserOnline(member);
+    const statusText = isOnline ? 'Online' : 'Offline';
+    const statusColor = isOnline ? '#10b981' : '#52525b';
+
+    let lastActiveStr = 'Unknown';
+    if (member.lastActiveAt) {
+      let timeMs = 0;
+      if (member.lastActiveAt.toMillis && typeof member.lastActiveAt.toMillis === 'function') {
+        timeMs = member.lastActiveAt.toMillis();
+      } else if (member.lastActiveAt.seconds) {
+        timeMs = member.lastActiveAt.seconds * 1000;
+      } else if (member.lastActiveAt instanceof Date) {
+        timeMs = member.lastActiveAt.getTime();
+      } else if (typeof member.lastActiveAt === 'string') {
+        timeMs = new Date(member.lastActiveAt).getTime();
+      } else if (typeof member.lastActiveAt === 'number') {
+        timeMs = member.lastActiveAt;
+      }
+      if (timeMs > 0) {
+        lastActiveStr = new Date(timeMs).toLocaleString();
+      }
+    }
+
+    this.openModal(`${member.name}'s Profile`, (modalBody) => {
+      modalBody.innerHTML = `
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div class="avatar-container" style="display: inline-block; margin: 0 auto 16px;">
+            <div class="member-profile-modal-avatar" style="background: ${member.avatarUrl ? 'transparent' : member.color || '#52525b'}; position: relative; margin: 0;">
+              ${member.avatarUrl ? `<img src="${member.avatarUrl}" style="width:100%;height:100%;border-radius:20px;object-fit:cover;">` : member.avatar}
+              <div class="user-presence-dot ${isOnline ? 'online' : ''}" style="width:18px;height:18px;border-width:3px;bottom:-4px;right:-4px;"></div>
+            </div>
+          </div>
+          <h2 style="margin: 0 0 8px; font-size: 24px; color: var(--text-primary);">${this.escapeHtml(member.name)}</h2>
+          <div style="font-size: 14px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor};"></div>
+            ${statusText}
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom: 0;">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <div style="font-size: 14px; color: var(--text-primary);">${this.escapeHtml(member.email || 'Not provided')}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <div style="font-size: 14px; color: var(--text-primary);">${this.escapeHtml(member.role || 'Member')}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Active</label>
+            <div style="font-size: 14px; color: var(--text-muted);">${lastActiveStr}</div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  static escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+      .toString()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 }
 

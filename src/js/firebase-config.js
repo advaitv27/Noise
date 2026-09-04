@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Central Firebase Cloud Configuration
+   Noise Desktop - Central Firebase Cloud Configuration
    ==========================================================================
    Paste your Firebase project credentials below ONCE.
    Every user / team member who runs the app will automatically connect

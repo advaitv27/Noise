@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Notification & Toast Alert Manager
+   Noise Desktop - Notification & Toast Alert Manager
    ========================================================================== */
 
 class ToastNotificationManager {

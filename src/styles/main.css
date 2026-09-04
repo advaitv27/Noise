@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CollabCal Desktop - Core CSS & Design System
+   Noise Desktop - Core CSS & Design System
    Color Schemes: 
    - Dark/Black (Default): High contrast deep OLED black & zinc dark palette
    - Light Theme: Pristine slate & soft snow theme
@@ -8,7 +8,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
 
 /* ==========================================================================
-   CollabCal Desktop - Liquid Glass Theme & Professional Design System
+   Noise Desktop - Liquid Glass Theme & Professional Design System
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
@@ -276,6 +276,16 @@ body {
   transition: all 0.25s ease;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+
+.app-sidebar.collapsed {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-right: none;
+  opacity: 0;
+  margin-left: -20px;
+  pointer-events: none;
 }
 
 .app-sidebar::-webkit-scrollbar {
@@ -567,8 +577,77 @@ body {
 }
 
 
-/* Fix unresponsiveness in inputs due to Electron drag regions */
+/* Fix unresponsiveness in inputs due to Electron drag regions and user-select none */
 input, textarea, button, select {
   -webkit-app-region: no-drag;
+}
+input, textarea {
+  user-select: auto;
+}
+
+/* ==========================================================================
+   LOW PERFORMANCE MODE OVERRIDES
+   Disables heavy GPU effects (backdrop-filter, box-shadow) for low-end PCs
+   ========================================================================== */
+body.low-performance-mode * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+body.low-performance-mode .calendar-card,
+body.low-performance-mode .chat-sidebar,
+body.low-performance-mode .modal-body,
+body.low-performance-mode .app-sidebar,
+body.low-performance-mode .panel,
+body.low-performance-mode .topbar {
+  background: var(--bg-app) !important;
+  border-color: var(--border-color) !important;
+}
+
+body.low-performance-mode .calendar-event {
+  background: var(--bg-surface-elevated) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* ==========================================================================
+   Mobile Responsive Adjustments
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Fix layout to allow vertical scrolling on mobile */
+  body {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .app-container {
+    height: calc(100vh - 52px); /* Account for taller mobile titlebar */
+  }
+
+  /* Transform Sidebar into an Overlay Drawer */
+  .app-sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    height: 100%;
+    z-index: 1000;
+    background: var(--bg-surface-elevated);
+    box-shadow: var(--shadow-lg);
+    transform: translateX(0);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .app-sidebar.collapsed {
+    transform: translateX(-100%);
+    width: 255px; /* keep width so content doesn't reflow during animation */
+    margin-left: 0;
+    opacity: 1; /* keep opacity so animation is smooth */
+  }
+
+  /* Shrink tab padding to save mobile screen real estate */
+  .tab-page {
+    padding: 16px 12px;
+  }
 }
 
