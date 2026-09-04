@@ -622,15 +622,20 @@ body.low-performance-mode .calendar-event {
 
   .app-container {
     height: calc(100vh - 52px); /* Account for taller mobile titlebar */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .app-content {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   /* Transform Sidebar into an Overlay Drawer */
   .app-sidebar {
     position: absolute;
     left: 0;
-    top: 0;
-    bottom: 0;
-    height: 100%;
+    top: calc(52px + env(safe-area-inset-top)); /* Below the mobile header */
+    height: calc(100vh - 52px - env(safe-area-inset-top));
+    padding-top: 16px;
     z-index: 1000;
     background: var(--bg-surface-elevated);
     box-shadow: var(--shadow-lg);

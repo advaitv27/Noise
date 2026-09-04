@@ -1196,12 +1196,20 @@ class AppRouter {
       `;
 
       // Event Listeners
-      containerEl.querySelector('#btn-google-login')?.addEventListener('click', () => {
+      containerEl.querySelector('#btn-google-login')?.addEventListener('click', async () => {
         if (window.electronAPI && window.electronAPI.openExternalBrowser) {
           ToastNotificationManager.show({ title: 'Opening Browser', message: 'Please complete sign-in in your web browser.' });
           window.electronAPI.openExternalBrowser('http://localhost:42899/google-auth.html');
+        } else if (window.firebaseService && window.firebaseService.auth) {
+          try {
+            ToastNotificationManager.show({ title: 'Authenticating', message: 'Opening Google Sign-In...' });
+            const provider = new firebase.auth.GoogleAuthProvider();
+            await window.firebaseService.auth.signInWithPopup(provider);
+          } catch (e) {
+            ToastNotificationManager.show({ title: 'Login Failed', message: e.message, isError: true, isConflict: true });
+          }
         } else {
-          ToastNotificationManager.show({ title: 'Error', message: 'External browser routing not available.', isConflict: true });
+          ToastNotificationManager.show({ title: 'Error', message: 'Authentication routing not available.', isConflict: true });
         }
       });
 

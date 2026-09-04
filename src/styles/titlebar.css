@@ -3,13 +3,13 @@
    ========================================================================== */
 
 .desktop-titlebar {
-  height: 42px;
+  height: calc(42px + env(safe-area-inset-top, 0px));
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0 0 16px;
+  padding: env(safe-area-inset-top, 0px) 0 0 16px;
   -webkit-app-region: drag; /* Allows moving the native desktop window */
   user-select: none;
   z-index: 100;
@@ -248,8 +248,8 @@
    ========================================================================== */
 @media (max-width: 768px) {
   .desktop-titlebar {
-    padding: 0 12px;
-    height: 52px; /* Taller header for mobile touch targets */
+    padding: env(safe-area-inset-top, 0px) 12px 0 12px;
+    height: calc(52px + env(safe-area-inset-top, 0px)); /* Taller header for mobile touch targets */
     -webkit-app-region: no-drag; /* Disable drag on mobile */
   }
 
