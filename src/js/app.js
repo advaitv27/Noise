@@ -1206,7 +1206,29 @@ class AppRouter {
             const provider = new firebase.auth.GoogleAuthProvider();
             await window.firebaseService.auth.signInWithPopup(provider);
           } catch (e) {
-            ToastNotificationManager.show({ title: 'Login Failed', message: e.message, isError: true, isConflict: true });
+            if (e.code === 'auth/operation-not-supported-in-this-environment') {
+               ToastNotificationManager.show({ title: 'Mobile Demo Mode', message: 'Google Auth requires native plugins. Logging in as Mobile Tester.' });
+               try {
+                 const cred = await window.firebaseService.auth.signInAnonymously();
+                 const mockProfile = {
+                   id: cred.user.uid,
+                   uid: cred.user.uid,
+                   name: "Mobile Tester",
+                   email: "mobile@demo.com",
+                   role: "Mobile App Tester",
+                   avatar: "MT",
+                   color: "#10b981",
+                   active: true
+                 };
+                 window.store.setActiveUserFromFirebase(mockProfile, true);
+                 window.store.setFirebaseUser(cred.user);
+                 setTimeout(() => window.location.reload(), 1500);
+               } catch (err) {
+                 ToastNotificationManager.show({ title: 'Fallback Failed', message: err.message, isError: true });
+               }
+            } else {
+               ToastNotificationManager.show({ title: 'Login Failed', message: e.message, isError: true, isConflict: true });
+            }
           }
         } else {
           ToastNotificationManager.show({ title: 'Error', message: 'Authentication routing not available.', isConflict: true });
