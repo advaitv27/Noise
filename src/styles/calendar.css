@@ -441,8 +441,23 @@
     font-size: 6px;
   }
 
+  .calendar-pill-title {
+    font-size: 8px;
+  }
+
   .event-pill-time {
     display: none; /* Hide time to save space on mobile */
+  }
+
+  /* Prevent sideways scrolling of the grid */
+  .calendar-wrapper, .calendar-grid-container, .month-grid, .calendar-weekday-header {
+    width: 100%;
+    max-width: 100vw;
+  }
+  
+  /* Hide the count badge to save space */
+  .day-count-badge {
+    display: none;
   }
 }
 

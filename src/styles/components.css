@@ -1168,8 +1168,9 @@
 @media (max-width: 768px) {
   .modal-container {
     width: 95%;
-    max-width: none;
+    max-width: 95vw;
     margin: 20px auto;
+    overflow-x: hidden;
   }
   
   .btn, .btn-primary, .btn-secondary, .btn-outline {

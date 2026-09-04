@@ -192,7 +192,9 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-app);
   color: var(--text-primary);
-  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  max-width: 100vw;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -253,7 +255,9 @@ body {
 .app-container {
   display: flex;
   flex: 1;
-  height: calc(100vh - 42px);
+  height: calc(100dvh - 42px);
+  width: 100%;
+  max-width: 100vw;
   overflow: hidden;
   position: relative;
   z-index: 1;
@@ -276,6 +280,7 @@ body {
   transition: all 0.25s ease;
   overflow-y: auto;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .app-sidebar.collapsed {
@@ -562,6 +567,8 @@ body {
   flex: 1;
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   padding: 24px 32px;
   animation: fadeIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -616,12 +623,12 @@ body.low-performance-mode .calendar-event {
 @media (max-width: 768px) {
   /* Fix layout to allow vertical scrolling on mobile */
   body {
-    height: auto;
-    min-height: 100vh;
+    height: 100dvh;
+    min-height: 100dvh;
   }
 
   .app-container {
-    height: calc(100vh - 52px); /* Account for taller mobile titlebar */
+    height: calc(100dvh - 52px); /* Account for taller mobile titlebar */
     padding-bottom: env(safe-area-inset-bottom);
   }
 
